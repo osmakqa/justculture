@@ -21,7 +21,7 @@
   <div class="max-w-6xl mx-auto p-6">
     <!-- Header -->
     <header class="flex items-center gap-4 mb-6">
-      <!-- Update the src if your file name differs -->
+      <!-- Update src if your filename differs -->
       <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
       <div>
         <h1 class="text-2xl font-bold">Just Culture Assessment Tool</h1>
@@ -337,7 +337,6 @@ function readFromUI(){
 }
 
 // ===================== ASSESSMENT ENGINE =====================
-// Step-by-step branching. One question at a time; previous answers are editable.
 const TREES = {
   duty_harm: {
     first: 'purpose',
@@ -585,57 +584,86 @@ function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":
 
 // ===================== API (Apps Script) =====================
 async function api(method, payload){
-  const res = await fetch(WEB_APP_URL, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify({ method, sheet:SHEET_NAME, payload })
-  });
+  let res, text;
+  try {
+    res = await fetch(WEB_APP_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ method, sheet:SHEET_NAME, payload })
+    });
+  } catch (netErr) {
+    throw new Error('Network error contacting backend: ' + netErr.message);
+  }
+
+  try {
+    text = await res.text();
+  } catch (readErr) {
+    throw new Error('Failed to read backend response: ' + readErr.message);
+  }
+
   let data;
-  try { data = await res.json(); } catch(e){ throw new Error('Bad JSON from backend'); }
-  if(!data.ok) throw new Error(data.error||'API error');
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Bad JSON from backend (HTTP ${res.status}): ${text.slice(0,200)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${data && data.error ? data.error : 'Unknown error'}`);
+  }
+  if (!data.ok) {
+    throw new Error(data.error || 'API error without message');
+  }
   return data;
 }
 
 async function save(){
+  readFromUI();
+
+  if(current.breach.type==='no_breach') setActiveTab('system');
+  if(current.system.ok==='no' && !current.system.actionPlan.trim()){
+    setActiveTab('system');
+    return toast('Action Plan is required when System Test = No.');
+  }
+
+  // 1) Save first
   try {
-    readFromUI();
-    if(current.breach.type==='no_breach') setActiveTab('system');
-    if(current.system.ok==='no' && !current.system.actionPlan.trim()){
-      setActiveTab('system');
-      return toast('Action Plan is required when System Test = No.');
-    }
     const rec = { id: currentId, data: current };
     const { id } = await api('save', rec);
-    currentId = id; toast('Saved'); loadRows();
+    currentId = id;
+    toast('Saved');
   } catch(err){
-    console.error(err);
-    toast('Save failed: ' + err.message);
+    console.error('Save error:', err);
+    return toast('Save failed: ' + err.message);
+  }
+
+  // 2) Then refresh list; if it fails, don’t mark save as failed
+  try {
+    await loadRows();
+  } catch(err){
+    console.error('List error after save:', err);
+    toast('List refresh failed: ' + err.message);
   }
 }
 
 async function loadRows(){
-  try {
-    const q = byId('searchBox').value.trim();
-    const { rows } = await api('list', { q });
-    const tbody = byId('rowsTable');
-    tbody.innerHTML = rows.map(r=> `
-      <tr class="border-b">
-        <td class="px-2 py-2">${r.id}</td>
-        <td class="px-2 py-2">${r.eventDate||''}</td>
-        <td class="px-2 py-2">${escapeHTML(r.description||'')}</td>
-        <td class="px-2 py-2">${escapeHTML(r.division||'')}</td>
-        <td class="px-2 py-2">${escapeHTML(r.breach||'')}</td>
-        <td class="px-2 py-2">
-          <button data-id="${r.id}" class="btnEdit text-emerald-700 mr-2">Edit</button>
-          <button data-id="${r.id}" class="btnDelete text-red-700">Delete</button>
-        </td>
-      </tr>`).join('');
-    $$('.btnEdit').forEach(b=> b.onclick = ()=> openRow(b.dataset.id));
-    $$('.btnDelete').forEach(b=> b.onclick = ()=> delRow(b.dataset.id));
-  } catch(err){
-    console.error(err);
-    toast('Load failed: ' + err.message);
-  }
+  const q = byId('searchBox').value.trim();
+  const { rows } = await api('list', { q }); // let errors throw
+  const tbody = byId('rowsTable');
+  tbody.innerHTML = rows.map(r=> `
+    <tr class="border-b">
+      <td class="px-2 py-2">${r.id}</td>
+      <td class="px-2 py-2">${r.eventDate||''}</td>
+      <td class="px-2 py-2">${escapeHTML(r.description||'')}</td>
+      <td class="px-2 py-2">${escapeHTML(r.division||'')}</td>
+      <td class="px-2 py-2">${escapeHTML(r.breach||'')}</td>
+      <td class="px-2 py-2">
+        <button data-id="${r.id}" class="btnEdit text-emerald-700 mr-2">Edit</button>
+        <button data-id="${r.id}" class="btnDelete text-red-700">Delete</button>
+      </td>
+    </tr>`).join('');
+  $$('.btnEdit').forEach(b=> b.onclick = ()=> openRow(b.dataset.id));
+  $$('.btnDelete').forEach(b=> b.onclick = ()=> delRow(b.dataset.id));
 }
 
 async function openRow(id){
@@ -643,7 +671,7 @@ async function openRow(id){
     const { record } = await api('get', { id });
     current = record.data; currentId = record.id; syncToUI(); setActiveTab('event'); renderReport();
   } catch(err){
-    console.error(err);
+    console.error('Open failed:', err);
     toast('Open failed: ' + err.message);
   }
 }
@@ -652,7 +680,7 @@ async function delRow(id){
     if(!confirm('Delete this entry?')) return;
     await api('delete', { id }); loadRows();
   } catch(err){
-    console.error(err);
+    console.error('Delete failed:', err);
     toast('Delete failed: ' + err.message);
   }
 }
