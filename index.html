@@ -436,15 +436,28 @@ function renderAssessment(){
   const panel = byId('assessmentQuestions');
   panel.innerHTML = '';
   const type = current.breach.type;
-  if(!type){ byId('decisionBox').textContent=''; renderFlow('flowchart',''); panel.innerHTML = '<div class="text-sm text-neutral-600">Select a breach first.</div>'; return; }
-  if(type==='no_breach'){ byId('decisionBox').textContent = 'No breach selected → proceed to System Test.'; renderFlow('flowchart', 'flowchart TD\nA[No Breach]-->B[Go to System Test]'); return; }
+
+  if (!type){
+    byId('decisionBox').textContent = '';
+    renderFlow('flowchart','');
+    panel.innerHTML = '<div class="text-sm text-neutral-600">Select a breach first.</div>';
+    return;
+  }
+
+  if (type === 'no_breach'){
+    byId('decisionBox').textContent = 'No breach selected → proceed to System Test.';
+    renderFlow('flowchart', `flowchart TD
+A[No Breach]-->B[Go to System Test]`);
+    return;
+  }
 
   const key = current.assess.currentKey;
-  if(!key){ // finished
-    byId('decisionBox').textContent = current.assess.decision||'';
+  if (!key){ // finished
+    byId('decisionBox').textContent = current.assess.decision || '';
     renderPathFlow();
     return;
   }
+
   const text = TREES[type].text[key];
   const row = document.createElement('div');
   row.className='flex items-center justify-between border rounded-lg p-3';
@@ -478,23 +491,32 @@ function handleStepAnswer(val){
 function renderPathFlow(){
   // Build a simple linear path of Q->A nodes ending in Decision
   const path = current.assess.path || [];
-  let g = 'flowchart TD\n';
+  let g = `flowchart TD
+`;
   function esc(s){ return String(s||'').replace(/\[/g,'(').replace(/\]/g,')'); }
-  for(let i=0;i<path.length;i++){
+
+  for (let i=0;i<path.length;i++){
     const n = `N${i}`; const n2 = `N${i+1}`;
     const txt = esc(path[i].q);
-    g += `${n}[${txt}]\n`;
-    if(i<path.length-1){
-      const lbl = path[i].a==='yes'?'Yes':'No';
-      g += `${n} -- ${lbl} --> ${n2}\n`;
+    g += `${n}[${txt}]
+`;
+    if (i < path.length - 1){
+      const lbl = path[i].a === 'yes' ? 'Yes' : 'No';
+      g += `${n} -- ${lbl} --> ${n2}
+`;
     }
   }
+
   const lastN = `N${path.length}`;
-  g += `${lastN}[${esc(current.assess.decision||'Decision')}]\n`;
-  if(path.length > 0){
-    const lbl = path[path.length-1].a==='yes'?'Yes':'No';
-    g += `N${path.length-1} -- ${lbl} --> ${lastN}\n`;
+  g += `${lastN}[${esc(current.assess.decision || 'Decision')}]
+`;
+  if (path.length > 0){
+    const lbl = path[path.length-1].a === 'yes' ? 'Yes' : 'No';
+    g += `N${path.length-1} -- ${lbl} --> ${lastN}
+`;
   }
+
+  // save into report + render
   current.assess.flowchart = g;
   renderFlow('flowchart', g);
 }
@@ -644,13 +666,16 @@ function flattenCurrent(){
 
 // ===================== EVENTS =====================
 window.addEventListener('DOMContentLoaded', ()=>{
+  // Tabs
   $$('.tab').forEach(t=> t.onclick = ()=> setActiveTab(t.dataset.tab));
   setActiveTab('event');
 
-  // Keep data in sync and re-render report on change
-  $$('#cards input, #cards textarea').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); renderReport(); }));
+  // Keep data in sync + keep report live
+  $$('#cards input, #cards textarea').forEach(el =>
+    el.addEventListener('change', ()=>{ readFromUI(); renderReport(); })
+  );
 
-  // Stepper answer handler (Assessment → Yes/No)
+  // Assessment stepper: Yes/No → advance
   $$('#cards').onchange = (e)=>{ 
     if (e.target && e.target.name === 'step_answer') {
       handleStepAnswer(e.target.value);
@@ -658,12 +683,33 @@ window.addEventListener('DOMContentLoaded', ()=>{
     }
   };
 
-  // When breach changes, restart assessment flow
+  // When breach changes, restart the step flow
   $$('input[name="breach"]').forEach(el=> el.addEventListener('change', ()=>{
     readFromUI();
     startAssessment();
     renderAssessment();
   }));
+
+  // System prompts (require Action Plan when No)
+  $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ 
+    readFromUI(); 
+    byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); 
+  }));
+
+  // Top-right buttons
+  byId('btnNew').onclick = newRecord;
+  byId('btnSave').onclick = save;
+  byId('btnExportCSV').onclick = exportCSV;
+  byId('btnExportPDF').onclick = ()=> window.print();
+
+  // Previous entries
+  byId('btnRefresh').onclick = loadRows;
+  byId('searchBox').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadRows, 300); };
+
+  // Boot
+  newRecord(); 
+  loadRows();
+});
 
   $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ 
     readFromUI(); 
