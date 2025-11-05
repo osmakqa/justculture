@@ -21,6 +21,7 @@
   <div class="max-w-6xl mx-auto p-6">
     <!-- Header -->
     <header class="flex items-center gap-4 mb-6">
+      <!-- Update the src if your file name differs -->
       <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
       <div>
         <h1 class="text-2xl font-bold">Just Culture Assessment Tool</h1>
@@ -251,7 +252,7 @@
 
 <script>
 // ===================== CONFIG =====================
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec'; // update if your deployment URL changes
 const SHEET_NAME = 'Cases';
 
 // ===================== STATE =====================
@@ -589,50 +590,71 @@ async function api(method, payload){
     headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({ method, sheet:SHEET_NAME, payload })
   });
-  const data = await res.json();
+  let data;
+  try { data = await res.json(); } catch(e){ throw new Error('Bad JSON from backend'); }
   if(!data.ok) throw new Error(data.error||'API error');
   return data;
 }
 
 async function save(){
-  readFromUI();
-  if(current.breach.type==='no_breach') setActiveTab('system');
-  if(current.system.ok==='no' && !current.system.actionPlan.trim()){
-    setActiveTab('system');
-    return toast('Action Plan is required when System Test = No.');
+  try {
+    readFromUI();
+    if(current.breach.type==='no_breach') setActiveTab('system');
+    if(current.system.ok==='no' && !current.system.actionPlan.trim()){
+      setActiveTab('system');
+      return toast('Action Plan is required when System Test = No.');
+    }
+    const rec = { id: currentId, data: current };
+    const { id } = await api('save', rec);
+    currentId = id; toast('Saved'); loadRows();
+  } catch(err){
+    console.error(err);
+    toast('Save failed: ' + err.message);
   }
-  const rec = { id: currentId, data: current };
-  const { id } = await api('save', rec);
-  currentId = id; toast('Saved'); loadRows();
 }
 
 async function loadRows(){
-  const q = byId('searchBox').value.trim();
-  const { rows } = await api('list', { q });
-  const tbody = byId('rowsTable');
-  tbody.innerHTML = rows.map(r=> `
-    <tr class="border-b">
-      <td class="px-2 py-2">${r.id}</td>
-      <td class="px-2 py-2">${r.eventDate||''}</td>
-      <td class="px-2 py-2">${escapeHTML(r.description||'')}</td>
-      <td class="px-2 py-2">${escapeHTML(r.division||'')}</td>
-      <td class="px-2 py-2">${escapeHTML(r.breach||'')}</td>
-      <td class="px-2 py-2">
-        <button data-id="${r.id}" class="btnEdit text-emerald-700 mr-2">Edit</button>
-        <button data-id="${r.id}" class="btnDelete text-red-700">Delete</button>
-      </td>
-    </tr>`).join('');
-  $$('.btnEdit').forEach(b=> b.onclick = ()=> openRow(b.dataset.id));
-  $$('.btnDelete').forEach(b=> b.onclick = ()=> delRow(b.dataset.id));
+  try {
+    const q = byId('searchBox').value.trim();
+    const { rows } = await api('list', { q });
+    const tbody = byId('rowsTable');
+    tbody.innerHTML = rows.map(r=> `
+      <tr class="border-b">
+        <td class="px-2 py-2">${r.id}</td>
+        <td class="px-2 py-2">${r.eventDate||''}</td>
+        <td class="px-2 py-2">${escapeHTML(r.description||'')}</td>
+        <td class="px-2 py-2">${escapeHTML(r.division||'')}</td>
+        <td class="px-2 py-2">${escapeHTML(r.breach||'')}</td>
+        <td class="px-2 py-2">
+          <button data-id="${r.id}" class="btnEdit text-emerald-700 mr-2">Edit</button>
+          <button data-id="${r.id}" class="btnDelete text-red-700">Delete</button>
+        </td>
+      </tr>`).join('');
+    $$('.btnEdit').forEach(b=> b.onclick = ()=> openRow(b.dataset.id));
+    $$('.btnDelete').forEach(b=> b.onclick = ()=> delRow(b.dataset.id));
+  } catch(err){
+    console.error(err);
+    toast('Load failed: ' + err.message);
+  }
 }
 
 async function openRow(id){
-  const { record } = await api('get', { id });
-  current = record.data; currentId = record.id; syncToUI(); setActiveTab('event'); renderReport();
+  try {
+    const { record } = await api('get', { id });
+    current = record.data; currentId = record.id; syncToUI(); setActiveTab('event'); renderReport();
+  } catch(err){
+    console.error(err);
+    toast('Open failed: ' + err.message);
+  }
 }
 async function delRow(id){
-  if(!confirm('Delete this entry?')) return;
-  await api('delete', { id }); loadRows();
+  try {
+    if(!confirm('Delete this entry?')) return;
+    await api('delete', { id }); loadRows();
+  } catch(err){
+    console.error(err);
+    toast('Delete failed: ' + err.message);
+  }
 }
 
 function exportCSV(){
