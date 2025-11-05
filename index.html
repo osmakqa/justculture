@@ -1,0 +1,816 @@
+# Just Culture Assessment Tool (Desktop Web App)
+
+Single‑page desktop app with 5 tabs: **Event, Investigation, Breach, Assessment, System, Report**. Pure front‑end (HTML/CSS/JS) + Google Sheets (one wide sheet) via a minimal Apps Script web API.
+
+---
+
+## 1) Frontend — `index.html`
+
+> Put your Ospital ng Makati logo file as `osmak-logo.png` in the same folder (or change the `src`). Replace `YOUR_WEB_APP_URL_HERE` with your deployed Apps Script Web App URL.
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Just Culture Assessment Tool — OsMak</title>
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Flowchart (mermaid) -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+  </script>
+  <style>
+    /* Desktop focus */
+    @media (max-width: 1024px){ body:after{content:"Desktop layout only";position:fixed;bottom:8px;right:8px;background:#b91c1c;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;opacity:.9} }
+    /* Print styles for PDF */
+    @media print {
+      .no-print { display:none !important; }
+      body { margin: 12mm; }
+      .card { box-shadow: none !important; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-neutral-50 text-neutral-900">
+  <div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <header class="flex items-center gap-4 mb-6">
+      <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
+      <div>
+        <h1 class="text-2xl font-bold">Just Culture Assessment Tool</h1>
+        <p class="text-sm text-neutral-600">Ospital ng Makati • Desktop web app</p>
+      </div>
+      <div class="ml-auto no-print flex items-center gap-2">
+        <button id="btnNew" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">New</button>
+        <button id="btnSave" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">Save</button>
+        <button id="btnExportPDF" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Print / PDF</button>
+        <button id="btnExportCSV" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Export CSV</button>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="no-print grid grid-cols-6 gap-2 mb-4">
+      <button data-tab="event" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Event</button>
+      <button data-tab="investigation" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Investigation</button>
+      <button data-tab="breach" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Breach</button>
+      <button data-tab="assessment" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Assessment</button>
+      <button data-tab="system" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">System</button>
+      <button data-tab="report" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Report</button>
+    </nav>
+
+    <!-- Previous entries (drawer) -->
+    <section class="no-print mb-4">
+      <details class="group">
+        <summary class="cursor-pointer select-none px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-900 font-semibold">Previous Entries (View / Edit / Delete)</summary>
+        <div class="mt-3 p-3 bg-white border rounded-lg">
+          <div class="flex items-center gap-2 mb-3">
+            <input id="searchBox" type="text" placeholder="Search description, location, division…" class="w-full px-3 py-2 border rounded-lg"/>
+            <button id="btnRefresh" class="px-3 py-2 rounded-lg bg-neutral-800 text-white">Refresh</button>
+          </div>
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-neutral-100 text-neutral-700">
+                <tr>
+                  <th class="px-2 py-2 text-left">Case ID</th>
+                  <th class="px-2 py-2 text-left">Event Date</th>
+                  <th class="px-2 py-2 text-left">Description</th>
+                  <th class="px-2 py-2 text-left">Division</th>
+                  <th class="px-2 py-2 text-left">Breach</th>
+                  <th class="px-2 py-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rowsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- Cards container -->
+    <main id="cards" class="space-y-6">
+      <!-- EVENT TAB -->
+      <section data-panel="event" class="card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Event</h2>
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <h3 class="font-medium mb-2">I. Event Details</h3>
+            <label class="block text-sm mb-1">Description</label>
+            <textarea id="ev_description" rows="7" class="w-full p-3 border rounded-lg" placeholder="Describe the event clearly and concisely…"></textarea>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label class="block text-sm mb-1">Location</label>
+                <input id="ev_location" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Work Location</label>
+                <input id="emp_workLocation" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Event Date</label>
+                <input id="ev_eventDate" type="date" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Report Assessment Date</label>
+                <input id="ev_reportDate" type="date" class="w-full p-2 border rounded-lg" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-medium mb-2">II. Employee Information</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm mb-1">First Name</label>
+                <input id="emp_firstName" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Last Name</label>
+                <input id="emp_lastName" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Title</label>
+                <input id="emp_title" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Phone No.</label>
+                <input id="emp_phone" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Employee No.</label>
+                <input id="emp_number" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Hire Date</label>
+                <input id="emp_hireDate" type="date" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div class="col-span-2">
+                <label class="block text-sm mb-1">Division</label>
+                <input id="emp_division" class="w-full p-2 border rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVESTIGATION TAB -->
+      <section data-panel="investigation" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Investigation</h2>
+        <div class="grid grid-cols-2 gap-6">
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">What happened?</label>
+            <textarea id="inv_whatHappened" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">What normally happens?</label>
+            <textarea id="inv_normal" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">What does procedure require? <span title="If applicable; cite policy or SOP" class="text-xs text-neutral-500">(?)</span></label>
+            <textarea id="inv_procedure" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">Why did it happen?</label>
+            <textarea id="inv_why" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">How are the risks managed?</label>
+            <textarea id="inv_riskMgmt" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">Additional Comments</label>
+            <textarea id="inv_comments" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- BREACH TAB -->
+      <section data-panel="breach" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Breach</h2>
+        <fieldset class="grid grid-cols-1 gap-3">
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="duty_harm" />
+            <div>
+              <div class="font-medium">1) Duty to Avoid Causing Unjustifiable Risk or Harm</div>
+              <div class="text-sm text-neutral-600">Did the person put an organizational interest or value in harm's way?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="duty_rule" />
+            <div>
+              <div class="font-medium">2) Duty to Follow Procedural Rules</div>
+              <div class="text-sm text-neutral-600">Did the person breach a duty to follow a procedural rule?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="duty_outcome" />
+            <div>
+              <div class="font-medium">3) Duty to Produce Outcomes</div>
+              <div class="text-sm text-neutral-600">Did the person breach a duty to produce an outcome?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="repetitive" />
+            <div>
+              <div class="font-medium">4) Repetitive Human Error or At‑Risk Behavior</div>
+              <div class="text-sm text-neutral-600">Is there a series of human errors or continuing at‑risk behavior that make this person an outlier in performance?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="no_breach" />
+            <div>
+              <div class="font-medium">5) No Breach</div>
+            </div>
+          </label>
+        </fieldset>
+        <label class="block text-sm mt-4 mb-1">Description</label>
+        <textarea id="breach_description" rows="4" class="w-full p-3 border rounded-lg" placeholder="Add any clarifying notes on the selected breach (optional)"></textarea>
+      </section>
+
+      <!-- ASSESSMENT TAB -->
+      <section data-panel="assessment" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Assessment</h2>
+        <div id="assessmentQuestions" class="space-y-3"></div>
+        <div class="mt-4">
+          <div class="text-sm text-neutral-600 mb-1">Derived Decision</div>
+          <div id="decisionBox" class="border rounded-lg p-3 bg-neutral-50"></div>
+        </div>
+        <div class="mt-6">
+          <h3 class="font-medium mb-2">Flowchart</h3>
+          <div id="flowchart" class="border rounded-lg p-3 overflow-auto"></div>
+        </div>
+      </section>
+
+      <!-- SYSTEM TAB -->
+      <section data-panel="system" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">System Test</h2>
+        <label class="block text-sm mb-1">Does the system appear designed to achieve the results you intend?</label>
+        <div class="flex items-center gap-6 mb-3">
+          <label class="flex items-center gap-2"><input type="radio" name="sys_ok" value="yes"> <span>Yes</span></label>
+          <label class="flex items-center gap-2"><input type="radio" name="sys_ok" value="no"> <span>No — redesign required</span></label>
+        </div>
+        <div id="sys_prompts" class="hidden mt-2 space-y-2">
+          <div class="text-sm text-neutral-600">Guided prompts (fill as relevant):</div>
+          <textarea id="sys_staffing" rows="2" class="w-full p-2 border rounded-lg" placeholder="Staffing"></textarea>
+          <textarea id="sys_equipment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Equipment"></textarea>
+          <textarea id="sys_training" rows="2" class="w-full p-2 border rounded-lg" placeholder="Training / competency"></textarea>
+          <textarea id="sys_environment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Environment / workflow"></textarea>
+          <textarea id="sys_it" rows="2" class="w-full p-2 border rounded-lg" placeholder="IT / EMR / alerts"></textarea>
+          <label class="block text-sm mt-2">Required Action Plan</label>
+          <textarea id="sys_actionPlan" rows="3" class="w-full p-2 border rounded-lg" placeholder="Describe redesign actions, owner, and timeline"></textarea>
+        </div>
+      </section>
+
+      <!-- REPORT TAB -->
+      <section data-panel="report" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Report</h2>
+        <div id="reportContainer" class="space-y-4"></div>
+      </section>
+    </main>
+  </div>
+
+<script>
+// ===================== CONFIG =====================
+const WEB_APP_URL = 'YOUR_WEB_APP_URL_HERE'; // Apps Script web app endpoint
+const SHEET_NAME = 'Cases';
+
+// ===================== STATE =====================
+let current = {}; // in‑memory record
+let currentId = null; // caseId from sheet
+const defaultState = () => ({
+  ev: {
+    description:'', location:'', eventDate:'', reportDate:'',
+    employee: { firstName:'', lastName:'', title:'', phone:'', empNo:'', hireDate:'', division:'', workLocation:'' }
+  },
+  inv: { whatHappened:'', normal:'', procedure:'', why:'', riskMgmt:'', comments:'' },
+  breach: { type:'', description:'' },
+  assess: { answers: {}, decision:'', flowchart:'' },
+  system: { ok:'', staffing:'', equipment:'', training:'', environment:'', it:'', actionPlan:'' }
+});
+
+// ===================== UTILITIES =====================
+const byId = id => document.getElementById(id);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const setActiveTab = (name) => {
+  $$('[data-panel]').forEach(p => p.classList.toggle('hidden', p.getAttribute('data-panel')!==name));
+  $$('.tab').forEach(t => t.classList.toggle('bg-emerald-100', t.dataset.tab===name));
+};
+const toast = (msg) => { alert(msg); } // simple
+
+function newRecord(){ current = defaultState(); currentId=null; syncToUI(); renderReport(); }
+
+function syncToUI(){
+  // Event
+  byId('ev_description').value = current.ev.description;
+  byId('ev_location').value = current.ev.location;
+  byId('ev_eventDate').value = current.ev.eventDate;
+  byId('ev_reportDate').value = current.ev.reportDate;
+  byId('emp_firstName').value = current.ev.employee.firstName;
+  byId('emp_lastName').value = current.ev.employee.lastName;
+  byId('emp_title').value = current.ev.employee.title;
+  byId('emp_phone').value = current.ev.employee.phone;
+  byId('emp_number').value = current.ev.employee.empNo;
+  byId('emp_hireDate').value = current.ev.employee.hireDate;
+  byId('emp_division').value = current.ev.employee.division;
+  byId('emp_workLocation').value = current.ev.employee.workLocation;
+  // Breach
+  $$('input[name="breach"]').forEach(r=> r.checked = (r.value===current.breach.type));
+  byId('breach_description').value = current.breach.description;
+  // System
+  $$('input[name="sys_ok"]').forEach(r=> r.checked = (r.value===current.system.ok));
+  byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no');
+  byId('sys_staffing').value = current.system.staffing;
+  byId('sys_equipment').value = current.system.equipment;
+  byId('sys_training').value = current.system.training;
+  byId('sys_environment').value = current.system.environment;
+  byId('sys_it').value = current.system.it;
+  byId('sys_actionPlan').value = current.system.actionPlan;
+  // Assessment
+  renderAssessment();
+}
+
+function readFromUI(){
+  current.ev.description = byId('ev_description').value.trim();
+  current.ev.location = byId('ev_location').value.trim();
+  current.ev.eventDate = byId('ev_eventDate').value;
+  current.ev.reportDate = byId('ev_reportDate').value;
+  Object.assign(current.ev.employee, {
+    firstName: byId('emp_firstName').value.trim(),
+    lastName: byId('emp_lastName').value.trim(),
+    title: byId('emp_title').value.trim(),
+    phone: byId('emp_phone').value.trim(),
+    empNo: byId('emp_number').value.trim(),
+    hireDate: byId('emp_hireDate').value,
+    division: byId('emp_division').value.trim(),
+    workLocation: byId('emp_workLocation').value.trim(),
+  });
+  current.breach.type = (document.querySelector('input[name="breach"]:checked')||{}).value||'';
+  current.breach.description = byId('breach_description').value.trim();
+  current.system.ok = (document.querySelector('input[name="sys_ok"]:checked')||{}).value||'';
+  current.system.staffing = byId('sys_staffing').value;
+  current.system.equipment = byId('sys_equipment').value;
+  current.system.training = byId('sys_training').value;
+  current.system.environment = byId('sys_environment').value;
+  current.system.it = byId('sys_it').value;
+  current.system.actionPlan = byId('sys_actionPlan').value;
+}
+
+// ===================== ASSESSMENT ENGINE =====================
+const QUESTIONS = {
+  duty_harm: [
+    {k:'purpose', q:"Was it the employee's purpose to cause the harm?"},
+    {k:'knowingly', q:"Did the employee knowingly cause the harm?"},
+    {k:'lesser_evil', q:"Was the harm justified as the lesser of two evils?"},
+    {k:'substantial', q:"Did the behavior represent a substantial and unjustifiable risk?"},
+    {k:'conscious_disregard', q:"Did the employee consciously disregard this substantial and unjustifiable risk?"},
+    {k:'should_have_known', q:"Given this, should the employee have known they were taking a substantial and unjustifiable risk?"},
+    {k:'choose_behavior', q:"Did the employee choose the behavior?"}
+  ],
+  duty_rule: [
+    {k:'knew_rule', q:"Was the duty to follow a rule known to the employee?"},
+    {k:'possible', q:"Was it possible?"},
+    {k:'benefit_outweigh', q:"Did the benefit outweigh the risks?"},
+    {k:'good_faith', q:"Did the employee have a good‑faith but mistaken belief that the violation was insignificant or justified?"}
+  ],
+  duty_outcome: [
+    {k:'knew_outcome', q:"Was the duty to produce an outcome known to the employee?"},
+    {k:'possible', q:"Was it possible?"},
+    {k:'benefit_outweigh', q:"Did the benefit outweigh the risks?"},
+    {k:'acceptable_perf', q:"Is the employee at an acceptable level of performance?"}
+  ],
+  repetitive: [
+    {k:'system_source', q:"Does the source of the series of human errors or at‑risk behaviors reside within the system?"}
+  ],
+  no_breach: []
+};
+
+function decide(breach, A){
+  // Returns {decision, flow} where flow is a Mermaid graph
+  const Y = v=>A[v]==='yes';
+  const N = v=>A[v]==='no';
+  let decision = '';
+  let diagram = 'flowchart TD\n';
+  const box = (id, text)=>{ diagram += `${id}[${text}]\n`; };
+  const arrow = (a,b,label='')=>{ diagram += `${a} -- ${label} --> ${b}\n`; };
+
+  switch(breach){
+    case 'no_breach':
+      decision = 'No breach selected → proceed to System Test; no employee action.';
+      box('NB','No Breach'); box('SYS','Go to System Test'); arrow('NB','SYS');
+      break;
+    case 'duty_harm': {
+      // mirrors your diagram
+      const yesPunitive = 'Consider remedial/punitive action';
+      const support = 'Support employee in decision';
+      const noAction = 'Do not consider employee action';
+      const consoleErr = 'Console employee and conduct human error investigation';
+      const coachRisk = 'Coach employee and conduct at‑risk behavior investigation';
+
+      box('A','Purpose to cause harm?');
+      if(Y('purpose')){ decision = 'Consider punitive action'; box('AX','Consider punitive action'); arrow('A','AX','Yes'); break; }
+      box('B','Knowingly cause harm?'); arrow('A','B','No');
+      if(Y('knowingly')){
+        box('C','Harm justified as lesser of two evils?');
+        if(Y('lesser_evil')){ decision = support; box('CX',support); arrow('C','CX','Yes'); }
+        else { decision = 'Consider remedial/punitive action'; box('CY',decision); arrow('C','CY','No'); }
+        break;
+      }
+      box('D','Behavior a substantial & unjustifiable risk?'); arrow('B','D','No');
+      if(N('substantial')){ decision = noAction; box('DX',noAction); arrow('D','DX','No'); break; }
+      box('E','Consciously disregard this risk?'); arrow('D','E','Yes');
+      if(Y('conscious_disregard')){ decision = 'Consider remedial/punitive action'; box('EX',decision); arrow('E','EX','Yes'); break; }
+      box('F','Should employee have known?'); arrow('E','F','No');
+      if(N('should_have_known')){ decision = 'Do not consider employee action'; box('FX',decision); arrow('F','FX','No'); break; }
+      box('G','Did the employee choose the behavior?'); arrow('F','G','Yes');
+      decision = Y('choose_behavior') ? coachRisk : consoleErr;
+      box('GX',decision); arrow('G','GX', Y('choose_behavior')?'Yes':'No');
+      break;
+    }
+    case 'duty_rule': {
+      const support = 'Support employee for decision to violate rule';
+      const consoleErr = 'Console employee and conduct human error investigation';
+      const coachRisk = 'Coach employee and conduct at‑risk behavior investigation';
+      const punitive = 'Consider remedial/punitive action';
+      box('A','Duty to follow rule known?');
+      if(N('knew_rule')){ decision = 'Investigate circumstances leading to failure to know of duty'; box('AX',decision); arrow('A','AX','No'); break; }
+      box('B','Was it possible?'); arrow('A','B','Yes');
+      if(N('possible')){ decision = 'Investigate circumstances leading to impossibility'; box('BX',decision); arrow('B','BX','No'); break; }
+      box('C','Did benefit outweigh risks?'); arrow('B','C','Yes');
+      if(Y('benefit_outweigh')){ decision = support; box('CX',support); arrow('C','CX','Yes'); break; }
+      box('D','Good‑faith but mistaken belief it was insignificant/justified?'); arrow('C','D','No');
+      decision = Y('good_faith') ? coachRisk : punitive; box('DX',decision); arrow('D','DX', Y('good_faith')?'Yes':'No');
+      break;
+    }
+    case 'duty_outcome': {
+      const support='Support employee in decision';
+      const assist='Assist employee in producing better outcomes, or consider punitive action';
+      const accept='Accept outcome';
+      box('A','Duty to produce outcome known?');
+      if(N('knew_outcome')){ decision='Investigate circumstances leading to failure to know of duty'; box('AX',decision); arrow('A','AX','No'); break; }
+      box('B','Was it possible?'); arrow('A','B','Yes');
+      if(N('possible')){ decision='Investigate circumstances leading to impossibility'; box('BX',decision); arrow('B','BX','No'); break; }
+      box('C','Did benefit outweigh risks?'); arrow('B','C','Yes');
+      if(Y('benefit_outweigh')){ decision=support; box('CX',support); arrow('C','CX','Yes'); break; }
+      box('D','Employee at acceptable level of performance?'); arrow('C','D','No');
+      decision = Y('acceptable_perf') ? accept : assist; box('DX',decision); arrow('D','DX', Y('acceptable_perf')?'Yes':'No');
+      break;
+    }
+    case 'repetitive': {
+      box('A','Does source of series reside within the system?');
+      decision = (A.system_source==='yes') ? 'Investigate circumstances leading to system risk' : 'Consider remedial/punitive action';
+      box('AX',decision); arrow('A','AX', A.system_source==='yes'?'Yes':'No');
+      break;
+    }
+  }
+  return { decision, flow: diagram };
+}
+
+function renderAssessment(){
+  const panel = byId('assessmentQuestions');
+  panel.innerHTML = '';
+  const type = current.breach.type;
+  if(!type){ panel.innerHTML = '<div class="text-sm text-neutral-600">Select a breach first.</div>'; return; }
+  if(type==='no_breach'){ byId('decisionBox').textContent = 'No breach selected → proceed to System Test.'; renderFlow('flowchart', 'flowchart TD\nA[No Breach]-->B[Go to System Test]'); return; }
+  const qs = QUESTIONS[type];
+  // Build toggles
+  qs.forEach(({k,q})=>{
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between border rounded-lg p-2';
+    row.innerHTML = `<div>${q}</div>
+      <div class="flex items-center gap-6">
+        <label class="flex items-center gap-2"><input type="radio" name="ass_${k}" value="yes"> <span>Yes</span></label>
+        <label class="flex items-center gap-2"><input type="radio" name="ass_${k}" value="no"> <span>No</span></label>
+      </div>`;
+    panel.appendChild(row);
+  });
+  // apply existing answers
+  Object.entries(current.assess.answers||{}).forEach(([k,v])=>{
+    const el = document.querySelector(`input[name="ass_${k}"][value="${v}"]`);
+    if(el) el.checked = true;
+  });
+}
+
+function readAssessmentAnswers(){
+  const type = current.breach.type; if(!type) return;
+  const qs = QUESTIONS[type];
+  const A = {};
+  qs.forEach(({k})=>{
+    const el = document.querySelector(`input[name="ass_${k}"]:checked`);
+    if(el) A[k] = el.value; // yes/no
+  });
+  current.assess.answers = A;
+  const {decision, flow} = decide(type, A);
+  current.assess.decision = decision;
+  current.assess.flowchart = flow;
+  byId('decisionBox').textContent = decision||'';
+  renderFlow('flowchart', flow);
+}
+
+function renderFlow(containerId, diagram){
+  const el = byId(containerId);
+  el.innerHTML = `<pre class="mermaid">${diagram}</pre>`;
+  mermaid.run();
+}
+
+// ===================== REPORT =====================
+function renderReport(){
+  readFromUI(); readAssessmentAnswers();
+  const c = current; const R = byId('reportContainer');
+  const employee = c.ev.employee;
+  const breachLabel = {
+    'duty_harm':'Duty to Avoid Causing Unjustifiable Risk or Harm',
+    'duty_rule':'Duty to Follow Procedural Rules',
+    'duty_outcome':'Duty to Produce Outcomes',
+    'repetitive':'Repetitive Human Error or At‑Risk Behavior',
+    'no_breach':'No Breach'
+  }[c.breach.type] || '';
+
+  R.innerHTML = `
+    <section class="border rounded-lg p-4">
+      <h3 class="font-semibold text-emerald-800 mb-2">Event Details</h3>
+      <div><b>Description:</b> ${escapeHTML(c.ev.description)}</div>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <div><b>Location:</b> ${escapeHTML(c.ev.location)}</div>
+        <div><b>Work Location:</b> ${escapeHTML(employee.workLocation)}</div>
+        <div><b>Event Date:</b> ${c.ev.eventDate||''}</div>
+        <div><b>Report Assessment Date:</b> ${c.ev.reportDate||''}</div>
+      </div>
+    </section>
+    <section class="border rounded-lg p-4">
+      <h3 class="font-semibold text-emerald-800 mb-2">Employee</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div><b>Name:</b> ${escapeHTML(employee.firstName)} ${escapeHTML(employee.lastName)}</div>
+        <div><b>Title:</b> ${escapeHTML(employee.title)}</div>
+        <div><b>Phone:</b> ${escapeHTML(employee.phone)}</div>
+        <div><b>Employee No.:</b> ${escapeHTML(employee.empNo)}</div>
+        <div><b>Hire Date:</b> ${employee.hireDate||''}</div>
+        <div><b>Division:</b> ${escapeHTML(employee.division)}</div>
+      </div>
+    </section>
+    <section class="border rounded-lg p-4">
+      <h3 class="font-semibold text-emerald-800 mb-2">Investigation</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div><b>What happened?</b><br>${escapeHTML(c.inv.whatHappened)}</div>
+        <div><b>What normally happens?</b><br>${escapeHTML(c.inv.normal)}</div>
+        <div><b>What does procedure require?</b><br>${escapeHTML(c.inv.procedure)}</div>
+        <div><b>Why did it happen?</b><br>${escapeHTML(c.inv.why)}</div>
+        <div><b>How are the risks managed?</b><br>${escapeHTML(c.inv.riskMgmt)}</div>
+        <div><b>Additional comments:</b><br>${escapeHTML(c.inv.comments)}</div>
+      </div>
+    </section>
+    <section class="border rounded-lg p-4">
+      <h3 class="font-semibold text-emerald-800 mb-2">Breach</h3>
+      <div><b>Type:</b> ${escapeHTML(breachLabel)}</div>
+      <div class="mt-1"><b>Description:</b> ${escapeHTML(c.breach.description)}</div>
+      <div class="mt-2"><b>Assessment Decision:</b> ${escapeHTML(c.assess.decision)}</div>
+      <div class="mt-3">${c.assess.flowchart ? `<pre class='mermaid'>${c.assess.flowchart}</pre>`:''}</div>
+    </section>
+    <section class="border rounded-lg p-4">
+      <h3 class="font-semibold text-emerald-800 mb-2">System Test</h3>
+      <div><b>System appears designed to achieve intended results?</b> ${c.system.ok||''}</div>
+      ${c.system.ok==='no' ? `
+        <div class="grid grid-cols-2 gap-2 mt-2">
+          <div><b>Staffing:</b><br>${escapeHTML(c.system.staffing)}</div>
+          <div><b>Equipment:</b><br>${escapeHTML(c.system.equipment)}</div>
+          <div><b>Training:</b><br>${escapeHTML(c.system.training)}</div>
+          <div><b>Environment:</b><br>${escapeHTML(c.system.environment)}</div>
+          <div><b>IT:</b><br>${escapeHTML(c.system.it)}</div>
+        </div>
+        <div class="mt-2"><b>Action Plan:</b><br>${escapeHTML(c.system.actionPlan)}</div>
+      `:''}
+    </section>`;
+  if(c.assess.flowchart) mermaid.run();
+}
+
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+
+// ===================== API (Apps Script) =====================
+async function api(method, payload){
+  const res = await fetch(WEB_APP_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ method, sheet:SHEET_NAME, payload })
+  });
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error||'API error');
+  return data;
+}
+
+async function save(){
+  readFromUI(); readAssessmentAnswers();
+  if(current.breach.type==='no_breach') setActiveTab('system');
+  // if system is "no", action plan required
+  if(current.system.ok==='no' && !current.system.actionPlan.trim()){
+    setActiveTab('system');
+    return toast('Action Plan is required when System Test = No.');
+  }
+  const rec = { id: currentId, data: current };
+  const { id } = await api('save', rec);
+  currentId = id; toast('Saved'); loadRows();
+}
+
+async function loadRows(){
+  const q = byId('searchBox').value.trim();
+  const { rows } = await api('list', { q });
+  const tbody = byId('rowsTable');
+  tbody.innerHTML = rows.map(r=> `
+    <tr class="border-b">
+      <td class="px-2 py-2">${r.id}</td>
+      <td class="px-2 py-2">${r.eventDate||''}</td>
+      <td class="px-2 py-2">${escapeHTML(r.description||'')}</td>
+      <td class="px-2 py-2">${escapeHTML(r.division||'')}</td>
+      <td class="px-2 py-2">${escapeHTML(r.breach||'')}</td>
+      <td class="px-2 py-2">
+        <button data-id="${r.id}" class="btnEdit text-emerald-700 mr-2">Edit</button>
+        <button data-id="${r.id}" class="btnDelete text-red-700">Delete</button>
+      </td>
+    </tr>`).join('');
+  $$('.btnEdit').forEach(b=> b.onclick = ()=> openRow(b.dataset.id));
+  $$('.btnDelete').forEach(b=> b.onclick = ()=> delRow(b.dataset.id));
+}
+
+async function openRow(id){
+  const { record } = await api('get', { id });
+  current = record.data; currentId = record.id; syncToUI(); setActiveTab('event'); renderReport();
+}
+async function delRow(id){
+  if(!confirm('Delete this entry?')) return;
+  await api('delete', { id }); loadRows();
+}
+
+function exportCSV(){
+  const flat = flattenCurrent();
+  const headers = Object.keys(flat).join(',');
+  const values = Object.values(flat).map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+  const blob = new Blob([headers+'\n'+values],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='just-culture-case.csv'; a.click();
+}
+function flattenCurrent(){
+  const c=current; const e=c.ev.employee; const a=c.assess; const s=c.system;
+  return {
+    id: currentId||'',
+    description:c.ev.description, location:c.ev.location, eventDate:c.ev.eventDate, reportDate:c.ev.reportDate,
+    firstName:e.firstName, lastName:e.lastName, title:e.title, phone:e.phone, empNo:e.empNo, hireDate:e.hireDate, division:e.division, workLocation:e.workLocation,
+    inv_whatHappened:c.inv.whatHappened, inv_normal:c.inv.normal, inv_procedure:c.inv.procedure, inv_why:c.inv.why, inv_riskMgmt:c.inv.riskMgmt, inv_comments:c.inv.comments,
+    breach:c.breach.type, breach_desc:c.breach.description,
+    decision:a.decision, system_ok:s.ok, system_actionPlan:s.actionPlan
+  };
+}
+
+// ===================== EVENTS =====================
+window.addEventListener('DOMContentLoaded', ()=>{
+  // tabs
+  $$('.tab').forEach(t=> t.onclick = ()=> setActiveTab(t.dataset.tab));
+  setActiveTab('event');
+  // inputs → update state
+  $$('#cards input, #cards textarea').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); renderReport(); }));
+  $$('#cards input[name^="ass_"]').forEach(el=> el.addEventListener('change', ()=>{ readAssessmentAnswers(); renderReport(); }));
+  $$('input[name="breach"]').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); renderAssessment(); }));
+  $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); }));
+
+  // buttons
+  byId('btnNew').onclick = newRecord;
+  byId('btnSave').onclick = save;
+  byId('btnExportCSV').onclick = exportCSV;
+  byId('btnExportPDF').onclick = ()=> window.print();
+  byId('btnRefresh').onclick = loadRows;
+  byId('searchBox').oninput = () => { clearTimeout(window._t); window._t=setTimeout(loadRows,300); };
+
+  // init
+  newRecord(); loadRows();
+});
+</script>
+</body>
+</html>
+```
+
+---
+
+## 2) Google Apps Script — `Code.gs`
+
+> Create a spreadsheet with a sheet named **`Cases`**. Then create a new Apps Script project bound to that sheet or standalone. Paste the code, deploy **Web app** (Anyone with the link), and place the URL in `WEB_APP_URL` above.
+
+```javascript
+/***** CONFIG *****/
+const SHEET_NAME = 'Cases';
+const HEADERS = [
+  'id','timestamp','recordJSON',
+  // Optional denormalized columns for quick listing/search:
+  'eventDate','description','division','breach'
+];
+
+/***** BOOTSTRAP *****/
+function _sheet(){
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(SHEET_NAME);
+  if(!sh){ sh = ss.insertSheet(SHEET_NAME); sh.appendRow(HEADERS); }
+  const first = sh.getRange(1,1,1,HEADERS.length).getValues()[0];
+  if(first.join('\u0001') !== HEADERS.join('\u0001')){ sh.getRange(1,1,1,HEADERS.length).setValues([HEADERS]); }
+  return sh;
+}
+
+/***** WEB API *****/
+function doPost(e){
+  try{
+    const body = JSON.parse(e.postData.contents || '{}');
+    const { method, sheet, payload } = body;
+    if(method==='save') return _ok(saveRecord(payload));
+    if(method==='list') return _ok(listRecords(payload));
+    if(method==='get') return _ok(getRecord(payload.id));
+    if(method==='delete') return _ok(deleteRecord(payload.id));
+    return _err('Unknown method');
+  }catch(err){ return _err(err.message||String(err)); }
+}
+
+function _ok(data){ return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, data))).setMimeType(ContentService.MimeType.JSON); }
+function _err(error){ return ContentService.createTextOutput(JSON.stringify({ok:false,error})).setMimeType(ContentService.MimeType.JSON); }
+
+/***** HELPERS *****/
+function _now(){ return new Date(); }
+function _uuid(){ return Utilities.getUuid(); }
+
+/***** CRUD *****/
+function saveRecord(rec){
+  const sh = _sheet();
+  const id = rec.id && findRowById(rec.id) ? rec.id : _uuid();
+  const flat = flattenForList(rec.data, id);
+  const row = [ id, new Date(), JSON.stringify(rec.data), flat.eventDate, flat.description, flat.division, flat.breach ];
+  const existingRow = findRowById(id);
+  if(existingRow){ sh.getRange(existingRow,1,1,row.length).setValues([row]); }
+  else { sh.appendRow(row); }
+  return { id };
+}
+
+function listRecords({q}){
+  const sh = _sheet();
+  const rng = sh.getRange(2,1,Math.max(sh.getLastRow()-1,0), HEADERS.length);
+  const values = rng.getValues();
+  q = (q||'').toLowerCase();
+  const rows = values.map(r=>({
+    id: r[0], timestamp:r[1], recordJSON:r[2], eventDate:r[3], description:r[4], division:r[5], breach:r[6]
+  })).filter(r=> !q || (String(r.description||'').toLowerCase().includes(q) || String(r.division||'').toLowerCase().includes(q) || String(r.eventDate||'').includes(q) || String(r.breach||'').toLowerCase().includes(q))
+    ).slice(0,500); // safety
+  return { rows };
+}
+
+function getRecord(id){
+  const sh = _sheet();
+  const row = findRowById(id);
+  if(!row) throw new Error('Not found');
+  const data = sh.getRange(row,1,1,HEADERS.length).getValues()[0];
+  return { record: { id: data[0], data: JSON.parse(data[2]) } };
+}
+
+function deleteRecord(id){
+  const sh = _sheet();
+  const row = findRowById(id);
+  if(!row) throw new Error('Not found');
+  sh.deleteRow(row);
+  return { id };
+}
+
+function findRowById(id){
+  const sh = _sheet();
+  const ids = sh.getRange(2,1,Math.max(sh.getLastRow()-1,0),1).getValues().map(r=>r[0]);
+  const idx = ids.indexOf(id);
+  return idx<0? null : (idx+2);
+}
+
+function flattenForList(data, id){
+  return {
+    id,
+    eventDate: data?.ev?.eventDate || '',
+    description: (data?.ev?.description || '').slice(0,200),
+    division: data?.ev?.employee?.division || '',
+    breach: data?.breach?.type || ''
+  };
+}
+```
+
+---
+
+## 3) Sheet Structure (one wide sheet)
+
+* **Sheet name:** `Cases`
+* **Columns:** `id | timestamp | recordJSON | eventDate | description | division | breach`
+* All details are stored in `recordJSON` (raw app state). Extra columns are denormalized for quick list/search.
+
+---
+
+## 4) Notes
+
+* **Single‑choice Breach:** if **No Breach**, the app sends users directly to **System**; Assessment shows a simple note.
+* **System Test:** when **No**, the Action Plan field becomes **required** and guided prompts appear.
+* **Report:** embeds the generated flowchart and all entered answers. Use **Print / PDF** to export a print‑ready report. **Export CSV** downloads the current case as a single CSV line.
+* **Previous entries:** loads a searchable table (from the denormalized columns). You can **Edit** (loads record into the form) or **Delete**.
+* **Branding:** Tailwind + OsMak green accents; the logo in the header.
+
+---
+
+## 5) Quick Start
+
+1. Create a Google Sheet with a tab named **Cases**.
+2. Create an Apps Script project, paste `Code.gs`, **Deploy → Web app → Anyone**; copy the URL.
+3. Replace `YOUR_WEB_APP_URL_HERE` in `index.html` with that URL.
+4. Open `index.html` in a desktop browser. Create a record → **Save** → it should appear in **Previous Entries**.
+5. Use **Print / PDF** on the **Report** tab for a PDF, or **Export CSV** for a CSV row.
