@@ -1,10 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Just Culture Assessment Tool — Ospital ng Makati</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Mermaid for flowcharts -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });</script>
+  <style>
+    /* Desktop-focused notice */
+    @media (max-width: 1024px){ body:after{content:"Desktop layout only";position:fixed;bottom:8px;right:8px;background:#b91c1c;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;opacity:.9} }
+    /* Print styles (for PDF) */
+    @media print { .no-print { display:none !important; } body { margin: 12mm; } .card { box-shadow: none !important; border: 1px solid #ddd; } }
+  </style>
+</head>
+<body class="min-h-screen bg-neutral-50 text-neutral-900">
+  <div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <header class="flex items-center gap-4 mb-6">
+      <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
+      <div>
+        <h1 class="text-2xl font-bold">Just Culture Assessment Tool</h1>
+        <p class="text-sm text-neutral-600">Ospital ng Makati • Desktop web app</p>
+      </div>
+      <div class="ml-auto no-print flex items-center gap-2">
+        <button id="btnNew" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">New</button>
+        <button id="btnSave" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">Save</button>
+        <button id="btnExportPDF" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Print / PDF</button>
+        <button id="btnExportCSV" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Export CSV</button>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="no-print grid grid-cols-6 gap-2 mb-4">
+      <button data-tab="event" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Event</button>
+      <button data-tab="investigation" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Investigation</button>
+      <button data-tab="breach" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Breach</button>
+      <button data-tab="assessment" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Assessment</button>
+      <button data-tab="system" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">System</button>
+      <button data-tab="report" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Report</button>
+    </nav>
+
+    <!-- Previous entries -->
+    <section class="no-print mb-4">
+      <details class="group">
+        <summary class="cursor-pointer select-none px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-900 font-semibold">Previous Entries (View / Edit / Delete)</summary>
+        <div class="mt-3 p-3 bg-white border rounded-lg">
+          <div class="flex items-center gap-2 mb-3">
+            <input id="searchBox" type="text" placeholder="Search description, location, division…" class="w-full px-3 py-2 border rounded-lg"/>
+            <button id="btnRefresh" class="px-3 py-2 rounded-lg bg-neutral-800 text-white">Refresh</button>
+          </div>
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-neutral-100 text-neutral-700">
+                <tr>
+                  <th class="px-2 py-2 text-left">Case ID</th>
+                  <th class="px-2 py-2 text-left">Event Date</th>
+                  <th class="px-2 py-2 text-left">Description</th>
+                  <th class="px-2 py-2 text-left">Division</th>
+                  <th class="px-2 py-2 text-left">Breach</th>
+                  <th class="px-2 py-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rowsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- Cards container -->
+    <main id="cards" class="space-y-6">
+      <!-- EVENT TAB -->
+      <section data-panel="event" class="card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Event</h2>
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <h3 class="font-medium mb-2">I. Event Details</h3>
+            <label class="block text-sm mb-1">Description</label>
+            <textarea id="ev_description" rows="7" class="w-full p-3 border rounded-lg" placeholder="Describe the event clearly and concisely…"></textarea>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label class="block text-sm mb-1">Location</label>
+                <input id="ev_location" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Work Location</label>
+                <input id="emp_workLocation" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Event Date</label>
+                <input id="ev_eventDate" type="date" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Report Assessment Date</label>
+                <input id="ev_reportDate" type="date" class="w-full p-2 border rounded-lg" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-medium mb-2">II. Employee Information</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm mb-1">First Name</label>
+                <input id="emp_firstName" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Last Name</label>
+                <input id="emp_lastName" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Title</label>
+                <input id="emp_title" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Phone No.</label>
+                <input id="emp_phone" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Employee No.</label>
+                <input id="emp_number" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div>
+                <label class="block text-sm mb-1">Hire Date</label>
+                <input id="emp_hireDate" type="date" class="w-full p-2 border rounded-lg" />
+              </div>
+              <div class="col-span-2">
+                <label class="block text-sm mb-1">Division</label>
+                <input id="emp_division" class="w-full p-2 border rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVESTIGATION TAB -->
+      <section data-panel="investigation" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Investigation</h2>
+        <div class="grid grid-cols-2 gap-6">
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">What happened?</label>
+            <textarea id="inv_whatHappened" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">What normally happens?</label>
+            <textarea id="inv_normal" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">What does procedure require? <span title="If applicable; cite policy or SOP" class="text-xs text-neutral-500">(?)</span></label>
+            <textarea id="inv_procedure" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">Why did it happen?</label>
+            <textarea id="inv_why" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">How are the risks managed?</label>
+            <textarea id="inv_riskMgmt" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm mb-1">Additional Comments</label>
+            <textarea id="inv_comments" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- BREACH TAB -->
+      <section data-panel="breach" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Breach</h2>
+        <fieldset class="grid grid-cols-1 gap-3">
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="duty_harm" />
+            <div>
+              <div class="font-medium">1) Duty to Avoid Causing Unjustifiable Risk or Harm</div>
+              <div class="text-sm text-neutral-600">Did the person put an organizational interest or value in harm's way?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="duty_rule" />
+            <div>
+              <div class="font-medium">2) Duty to Follow Procedural Rules</div>
+              <div class="text-sm text-neutral-600">Did the person breach a duty to follow a procedural rule?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="duty_outcome" />
+            <div>
+              <div class="font-medium">3) Duty to Produce Outcomes</div>
+              <div class="text-sm text-neutral-600">Did the person breach a duty to produce an outcome?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="repetitive" />
+            <div>
+              <div class="font-medium">4) Repetitive Human Error or At‑Risk Behavior</div>
+              <div class="text-sm text-neutral-600">Is there a series of human errors or continuing at‑risk behavior that make this person an outlier in performance?</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-emerald-50 cursor-pointer">
+            <input class="mt-1" type="radio" name="breach" value="no_breach" />
+            <div>
+              <div class="font-medium">5) No Breach</div>
+            </div>
+          </label>
+        </fieldset>
+        <label class="block text-sm mt-4 mb-1">Description</label>
+        <textarea id="breach_description" rows="4" class="w-full p-3 border rounded-lg" placeholder="Add any clarifying notes on the selected breach (optional)"></textarea>
+      </section>
+
+      <!-- ASSESSMENT TAB -->
+      <section data-panel="assessment" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Assessment</h2>
+        <div id="assessmentQuestions" class="space-y-3"></div>
+        <div class="mt-4">
+          <div class="text-sm text-neutral-600 mb-1">Derived Decision</div>
+          <div id="decisionBox" class="border rounded-lg p-3 bg-neutral-50"></div>
+        </div>
+        <div class="mt-6">
+          <h3 class="font-medium mb-2">Flowchart</h3>
+          <div id="flowchart" class="border rounded-lg p-3 overflow-auto"></div>
+        </div>
+      </section>
+
+      <!-- SYSTEM TAB -->
+      <section data-panel="system" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">System Test</h2>
+        <label class="block text-sm mb-1">Does the system appear designed to achieve the results you intend?</label>
+        <div class="flex items-center gap-6 mb-3">
+          <label class="flex items-center gap-2"><input type="radio" name="sys_ok" value="yes"> <span>Yes</span></label>
+          <label class="flex items-center gap-2"><input type="radio" name="sys_ok" value="no"> <span>No — redesign required</span></label>
+        </div>
+        <div id="sys_prompts" class="hidden mt-2 space-y-2">
+          <div class="text-sm text-neutral-600">Guided prompts (fill as relevant):</div>
+          <textarea id="sys_staffing" rows="2" class="w-full p-2 border rounded-lg" placeholder="Staffing"></textarea>
+          <textarea id="sys_equipment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Equipment"></textarea>
+          <textarea id="sys_training" rows="2" class="w-full p-2 border rounded-lg" placeholder="Training / competency"></textarea>
+          <textarea id="sys_environment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Environment / workflow"></textarea>
+          <textarea id="sys_it" rows="2" class="w-full p-2 border rounded-lg" placeholder="IT / EMR / alerts"></textarea>
+          <label class="block text-sm mt-2">Required Action Plan</label>
+          <textarea id="sys_actionPlan" rows="3" class="w-full p-2 border rounded-lg" placeholder="Describe redesign actions, owner, and timeline"></textarea>
+        </div>
+      </section>
+
+      <!-- REPORT TAB -->
+      <section data-panel="report" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">Report</h2>
+        <div id="reportContainer" class="space-y-4"></div>
+      </section>
+    </main>
+  </div>
+
 <script>
 // ===================== CONFIG =====================
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec';
 const SHEET_NAME = 'Cases';
 
 // ===================== STATE =====================
-let current = {}; // in-memory record
+let current = {}; // in‑memory record
 let currentId = null; // caseId from sheet
 const defaultState = () => ({
   ev: {
@@ -113,7 +367,7 @@ const TREES = {
         case 'should_have_known':
           return A.should_have_known==='yes' ? {next:'choose_behavior'} : {done:true, decision:'Do not consider employee action'};
         case 'choose_behavior':
-          return A.choose_behavior==='yes' ? {done:true, decision:'Coach employee and conduct at-risk behavior investigation'} : {done:true, decision:'Console employee and conduct human error investigation'};
+          return A.choose_behavior==='yes' ? {done:true, decision:'Coach employee and conduct at‑risk behavior investigation'} : {done:true, decision:'Console employee and conduct human error investigation'};
       }
     }
   },
@@ -123,7 +377,7 @@ const TREES = {
       knew_rule: 'Was the duty to follow a rule known to the employee?',
       possible: 'Was it possible?',
       benefit_outweigh: 'Did the benefit outweigh the risks?',
-      good_faith: 'Did the employee have a good-faith but mistaken belief that the violation was insignificant or justified?'
+      good_faith: 'Did the employee have a good‑faith but mistaken belief that the violation was insignificant or justified?'
     },
     next(key, A){
       switch(key){
@@ -134,7 +388,7 @@ const TREES = {
         case 'benefit_outweigh':
           return A.benefit_outweigh==='yes' ? {done:true, decision:'Support employee for decision to violate rule'} : {next:'good_faith'};
         case 'good_faith':
-          return A.good_faith==='yes' ? {done:true, decision:'Coach employee and conduct at-risk behavior investigation'} : {done:true, decision:'Consider remedial/punitive action'};
+          return A.good_faith==='yes' ? {done:true, decision:'Coach employee and conduct at‑risk behavior investigation'} : {done:true, decision:'Consider remedial/punitive action'};
       }
     }
   },
@@ -162,7 +416,7 @@ const TREES = {
   repetitive: {
     first: 'system_source',
     text: {
-      system_source: 'Does the source of the series of human errors or at-risk behaviors reside within the system?'
+      system_source: 'Does the source of the series of human errors or at‑risk behaviors reside within the system?'
     },
     next(key, A){
       return A.system_source==='yes' ? {done:true, decision:'Investigate circumstances leading to system risk'} : {done:true, decision:'Consider remedial/punitive action'};
@@ -183,7 +437,8 @@ function renderAssessment(){
   panel.innerHTML = '';
   const type = current.breach.type;
   if(!type){ byId('decisionBox').textContent=''; renderFlow('flowchart',''); panel.innerHTML = '<div class="text-sm text-neutral-600">Select a breach first.</div>'; return; }
-  if(type==='no_breach'){ byId('decisionBox').textContent = 'No breach selected → proceed to System Test.'; renderFlow('flowchart', 'flowchart TD\\nA[No Breach]-->B[Go to System Test]'); return; }
+  if(type==='no_breach'){ byId('decisionBox').textContent = 'No breach selected → proceed to System Test.'; renderFlow('flowchart', 'flowchart TD
+A[No Breach]-->B[Go to System Test]'); return; }
 
   const key = current.assess.currentKey;
   if(!key){ // finished
@@ -224,42 +479,41 @@ function handleStepAnswer(val){
 function renderPathFlow(){
   // Build a simple linear path of Q->A nodes ending in Decision
   const path = current.assess.path || [];
-  let g = 'flowchart TD\\n';
+  let g = 'flowchart TD
+';
   function esc(s){ return String(s||'').replace(/\[/g,'(').replace(/\]/g,')'); }
   for(let i=0;i<path.length;i++){
     const n = `N${i}`; const n2 = `N${i+1}`;
     const txt = esc(path[i].q);
-    g += `${n}[${txt}]\\n`;
+    g += `${n}[${txt}]
+`;
     if(i<path.length-1){
       const lbl = path[i].a==='yes'?'Yes':'No';
-      g += `${n} -- ${lbl} --> ${n2}\\n`;
+      g += `${n} -- ${lbl} --> ${n2}
+`;
     }
   }
   const lastN = `N${path.length}`;
-  g += `${lastN}[${esc(current.assess.decision||'Decision')}]\\n`;
+  g += `${lastN}[${esc(current.assess.decision||'Decision')}]
+`;
   if(path.length>0){
     const lbl = path[path.length-1].a==='yes'?'Yes':'No';
-    g += `N${path.length-1} -- ${lbl} --> ${lastN}\\n`;
+    g += `N${path.length-1} -- ${lbl} --> ${lastN}
+`;
   }
   renderFlow('flowchart', g);
 }
 
-function renderFlow(containerId, diagram){
-  const el = byId(containerId);
-  el.innerHTML = `<pre class="mermaid">${diagram}</pre>`;
-  mermaid.run();
-}
-
-// ===================== REPORT =====================
+// ===================== REPORT ===================== =====================
 function renderReport(){
-  readFromUI();
+  readFromUI(); readAssessmentAnswers();
   const c = current; const R = byId('reportContainer');
   const e = c.ev.employee;
   const breachLabel = {
     'duty_harm':'Duty to Avoid Causing Unjustifiable Risk or Harm',
     'duty_rule':'Duty to Follow Procedural Rules',
     'duty_outcome':'Duty to Produce Outcomes',
-    'repetitive':'Repetitive Human Error or At-Risk Behavior',
+    'repetitive':'Repetitive Human Error or At‑Risk Behavior',
     'no_breach':'No Breach'
   }[c.breach.type] || '';
 
@@ -331,7 +585,7 @@ async function api(method, payload){
 }
 
 async function save(){
-  readFromUI();
+  readFromUI(); readAssessmentAnswers();
   if(current.breach.type==='no_breach') setActiveTab('system');
   if(current.system.ok==='no' && !current.system.actionPlan.trim()){ setActiveTab('system'); return toast('Action Plan is required when System Test = No.'); }
   const rec = { id: currentId, data: current };
@@ -391,29 +645,10 @@ function flattenCurrent(){
 window.addEventListener('DOMContentLoaded', ()=>{
   $$('.tab').forEach(t=> t.onclick = ()=> setActiveTab(t.dataset.tab));
   setActiveTab('event');
-
-  // Keep data in sync and re-render report on change
   $$('#cards input, #cards textarea').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); renderReport(); }));
-
-  // Stepper answer handler
-  $$('#cards').onchange = (e)=>{ 
-    if (e.target && e.target.name === 'step_answer') {
-      handleStepAnswer(e.target.value);
-      renderReport();
-    }
-  };
-
-  // When breach changes, restart assessment flow
-  $$('input[name="breach"]').forEach(el=> el.addEventListener('change', ()=>{
-    readFromUI();
-    startAssessment();
-    renderAssessment();
-  }));
-
-  $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ 
-    readFromUI(); 
-    byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); 
-  }));
+  $$('#cards').onchange = (e)=>{ if(e.target && e.target.name && e.target.name.startsWith('ass_')){ readAssessmentAnswers(); renderReport(); } };
+  $$('input[name="breach"]').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); renderAssessment(); }));
+  $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ readFromUI(); byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); }));
 
   byId('btnNew').onclick = newRecord;
   byId('btnSave').onclick = save;
@@ -425,3 +660,5 @@ window.addEventListener('DOMContentLoaded', ()=>{
   newRecord(); loadRows();
 });
 </script>
+</body>
+</html>
