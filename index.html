@@ -293,17 +293,10 @@ function setActiveTab(name){
     tabs[j].classList.toggle('bg-emerald-100', tabs[j].dataset.tab===name);
   }
 }
-function escapeHtml(s) {
-  s = (s === null || s === undefined) ? '' : s.toString();
-  return s.replace(/[&<>"']/g, function(m) {
-    return {
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      "\"":"&quot;",
-      "'":"&#39;"
-    }[m];
-  });
+/* FIXED: always stringify before replacing */
+function escapeHTML(s){
+  s = (s === undefined || s === null) ? '' : String(s);
+  return s.replace(/[&<>"']/g, function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]; });
 }
 
 /* ===== Busy bar ===== */
@@ -461,7 +454,7 @@ function readFromUI(){
   renderCaseIdBadge(); // update the "will look like" hint live
 }
 
-/* ===== Local preview of the ID prefix (for new cases) ===== */
+/* ===== Local ID prefix preview (for new cases) ===== */
 function breachCodeLocal(t){
   return t==='duty_harm'?'DH':t==='duty_rule'?'PR':t==='duty_outcome'?'DO':t==='repetitive'?'RB':t==='no_breach'?'NB':'NB';
 }
@@ -517,7 +510,7 @@ function renderAssessment(){
     var step = current.assess.path[i];
     var block = document.createElement('div');
     block.className = 'flex items-center justify-between border rounded-lg p-3';
-    block.innerHTML = '<div class="pr-4">'+step.q+'</div>\
+    block.innerHTML = '<div class="pr-4">'+escapeHTML(step.q)+'</div>\
       <div class="flex items-center gap-6">\
         <label class="flex items-center gap-2">\
           <input type="radio" name="ass_prev_'+i+'" data-index="'+i+'" value="yes" '+(step.a==='yes'?'checked':'')+'>\
@@ -536,7 +529,7 @@ function renderAssessment(){
     var actionWrap = document.createElement('div');
     actionWrap.className = 'mt-3';
     actionWrap.innerHTML = '<label class="block text-sm mb-1">Action</label>\
-      <textarea id="ass_action" rows="4" class="w-full p-3 border rounded-lg input-lg" placeholder="Document the action to be taken at this endpoint...">'+(current.assess.action||'')+'</textarea>';
+      <textarea id="ass_action" rows="4" class="w-full p-3 border rounded-lg input-lg" placeholder="Document the action to be taken at this endpoint...">'+escapeHTML(current.assess.action||'')+'</textarea>';
     panel.appendChild(actionWrap);
     return;
   }
@@ -545,7 +538,7 @@ function renderAssessment(){
   var text = TREES[type].text[key];
   var row = document.createElement('div');
   row.className='flex items-center justify-between border rounded-lg p-3';
-  row.innerHTML = '<div class="pr-4">'+text+'</div>\
+  row.innerHTML = '<div class="pr-4">'+escapeHTML(text)+'</div>\
     <div class="flex items-center gap-6">\
       <label class="flex items-center gap-2"><input type="radio" name="step_answer" value="yes"> <span>Yes</span></label>\
       <label class="flex items-center gap-2"><input type="radio" name="step_answer" value="no"> <span>No</span></label>\
@@ -608,7 +601,7 @@ function renderReport(){
   R.innerHTML =
   '<section class="border rounded-lg p-4">\
     <h3 class="font-semibold text-emerald-800 mb-2">Header</h3>\
-    <div><b>Case ID:</b> '+(currentId || '—')+'</div>\
+    <div><b>Case ID:</b> '+escapeHTML(currentId || '—')+'</div>\
   </section>\
   <section class="border rounded-lg p-4">\
     <h3 class="font-semibold text-emerald-800 mb-2">Event Details</h3>\
@@ -616,8 +609,8 @@ function renderReport(){
     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">\
       <div><b>Location:</b> '+escapeHTML(c.ev.location)+'</div>\
       <div><b>Work Location:</b> '+escapeHTML(e.workLocation)+'</div>\
-      <div><b>Event Date:</b> '+(c.ev.eventDate||'')+'</div>\
-      <div><b>Report Assessment Date:</b> '+(c.ev.reportDate||'')+'</div>\
+      <div><b>Event Date:</b> '+escapeHTML(c.ev.eventDate||'')+'</div>\
+      <div><b>Report Assessment Date:</b> '+escapeHTML(c.ev.reportDate||'')+'</div>\
     </div>\
   </section>\
   <section class="border rounded-lg p-4">\
@@ -627,7 +620,7 @@ function renderReport(){
       <div><b>Title:</b> '+escapeHTML(e.title)+'</div>\
       <div><b>Phone:</b> '+escapeHTML(e.phone)+'</div>\
       <div><b>Employee No.:</b> '+escapeHTML(e.empNo)+'</div>\
-      <div><b>Hire Date:</b> '+(e.hireDate||'')+'</div>\
+      <div><b>Hire Date:</b> '+escapeHTML(e.hireDate||'')+'</div>\
       <div><b>Division:</b> '+escapeHTML(e.division)+'</div>\
     </div>\
   </section>\
@@ -641,7 +634,7 @@ function renderReport(){
   '</section>\
   <section class="border rounded-lg p-4">\
     <h3 class="font-semibold text-emerald-800 mb-2">System</h3>\
-    <div><b>System appears designed to achieve intended results?</b> '+(c.system.ok||'')+'</div>' +
+    <div><b>System appears designed to achieve intended results?</b> '+escapeHTML(c.system.ok||'')+'</div>' +
     (c.system.ok==='no' ? '\
       <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">\
         <div><b>Staffing:</b><br>'+escapeHTML(c.system.staffing)+'</div>\
@@ -700,14 +693,14 @@ async function loadRows(){
     for(var i=0;i<rows.length;i++){
       var r = rows[i];
       html += '<tr class="border-b">\
-        <td class="px-2 py-2">'+r.id+'</td>\
-        <td class="px-2 py-2">'+(r.eventDate||'')+'</td>\
+        <td class="px-2 py-2">'+escapeHTML(r.id)+'</td>\
+        <td class="px-2 py-2">'+escapeHTML(r.eventDate||'')+'</td>\
         <td class="px-2 py-2">'+escapeHTML(r.description||'')+'</td>\
         <td class="px-2 py-2">'+escapeHTML(r.division||'')+'</td>\
         <td class="px-2 py-2">'+escapeHTML(r.breach||'')+'</td>\
         <td class="px-2 py-2">\
-          <button data-action="edit" data-id="'+r.id+'" class="text-emerald-700 mr-2">Edit</button>\
-          <button data-action="delete" data-id="'+r.id+'" class="text-red-700">Delete</button>\
+          <button data-action="edit" data-id="'+escapeHTML(r.id)+'" class="text-emerald-700 mr-2">Edit</button>\
+          <button data-action="delete" data-id="'+escapeHTML(r.id)+'" class="text-red-700">Delete</button>\
         </td></tr>';
     }
     tbody.innerHTML = html;
