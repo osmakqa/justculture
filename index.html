@@ -293,7 +293,18 @@ function setActiveTab(name){
     tabs[j].classList.toggle('bg-emerald-100', tabs[j].dataset.tab===name);
   }
 }
-function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]; }); }
+function escapeHtml(s) {
+  s = (s === null || s === undefined) ? '' : s.toString();
+  return s.replace(/[&<>"']/g, function(m) {
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      "\"":"&quot;",
+      "'":"&#39;"
+    }[m];
+  });
+}
 
 /* ===== Busy bar ===== */
 var _busyCount = 0;
