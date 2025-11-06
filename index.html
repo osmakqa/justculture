@@ -17,6 +17,10 @@
   </style>
 </head>
 <body class="min-h-screen bg-neutral-50 text-neutral-900">
+  <div id="initError" class="hidden fixed top-0 left-0 right-0 z-50 bg-red-700 text-white px-4 py-2 text-sm">
+    App init failed. Open the browser console to see the exact error.
+  </div>
+
   <div class="max-w-6xl mx-auto p-6">
     <header class="flex items-center gap-4 mb-6">
       <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
@@ -25,10 +29,10 @@
         <p class="text-sm text-neutral-600">Ospital ng Makati • Desktop web app</p>
       </div>
       <div class="ml-auto no-print flex items-center gap-2">
-        <button id="btnNew" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">New</button>
-        <button id="btnSave" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">Save</button>
-        <button id="btnExportPDF" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Print / PDF</button>
-        <button id="btnExportCSV" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Export CSV</button>
+        <button data-action="new" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">New</button>
+        <button data-action="save" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">Save</button>
+        <button data-action="print" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Print / PDF</button>
+        <button data-action="csv" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Export CSV</button>
       </div>
     </header>
 
@@ -47,7 +51,7 @@
         <div class="mt-3 p-3 bg-white border rounded-lg">
           <div class="flex items-center gap-2 mb-3">
             <input id="searchBox" type="text" placeholder="Search description, location, division…" class="w-full px-3 py-2 border rounded-lg"/>
-            <button id="btnRefresh" class="px-3 py-2 rounded-lg bg-neutral-800 text-white">Refresh</button>
+            <button data-action="refresh" class="px-3 py-2 rounded-lg bg-neutral-800 text-white">Refresh</button>
           </div>
           <div class="overflow-auto">
             <table class="min-w-full text-sm">
@@ -69,6 +73,7 @@
     </section>
 
     <main id="cards" class="space-y-6">
+      <!-- EVENT -->
       <section data-panel="event" class="card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Event</h2>
         <div class="grid grid-cols-2 gap-6">
@@ -131,6 +136,7 @@
         </div>
       </section>
 
+      <!-- INVESTIGATION -->
       <section data-panel="investigation" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Investigation</h2>
         <div class="grid grid-cols-2 gap-6">
@@ -161,6 +167,7 @@
         </div>
       </section>
 
+      <!-- BREACH -->
       <section data-panel="breach" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Breach</h2>
         <fieldset class="grid grid-cols-1 gap-3">
@@ -203,6 +210,7 @@
         <textarea id="breach_description" rows="4" class="w-full p-3 border rounded-lg" placeholder="Add any clarifying notes on the selected breach (optional)"></textarea>
       </section>
 
+      <!-- ASSESSMENT -->
       <section data-panel="assessment" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Assessment</h2>
         <div id="assessmentQuestions" class="space-y-3"></div>
@@ -212,6 +220,7 @@
         </div>
       </section>
 
+      <!-- SYSTEM -->
       <section data-panel="system" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">System Test</h2>
         <label class="block text-sm mb-1">Does the system appear designed to achieve the results you intend?</label>
@@ -226,11 +235,13 @@
           <textarea id="sys_training" rows="2" class="w-full p-2 border rounded-lg" placeholder="Training / competency"></textarea>
           <textarea id="sys_environment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Environment / workflow"></textarea>
           <textarea id="sys_it" rows="2" class="w-full p-2 border rounded-lg" placeholder="IT / EMR / alerts"></textarea>
+          <textarea id="sys_policy" rows="2" class="w-full p-2 border rounded-lg" placeholder="Policy / Procedure (gaps, updates, approvals)"></textarea>
           <label class="block text-sm mt-2">Required Action Plan</label>
           <textarea id="sys_actionPlan" rows="3" class="w-full p-2 border rounded-lg" placeholder="Describe redesign actions, owner, and timeline"></textarea>
         </div>
       </section>
 
+      <!-- REPORT -->
       <section data-panel="report" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Report</h2>
         <div id="reportContainer" class="space-y-4"></div>
@@ -239,32 +250,93 @@
   </div>
 
 <script>
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec';
-const SHEET_NAME = 'Cases';
+/* ===== Basic helpers ===== */
+function byId(id){ return document.getElementById(id); }
+function $all(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+function toast(msg){ alert(msg); }
+function setActiveTab(name){
+  var panels = $all('[data-panel]'); for (var i=0;i<panels.length;i++){
+    panels[i].classList.toggle('hidden', panels[i].getAttribute('data-panel')!==name);
+  }
+  var tabs = $all('.tab'); for (var j=0;j<tabs.length;j++){
+    tabs[j].classList.toggle('bg-emerald-100', tabs[j].dataset.tab===name);
+  }
+}
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]; }); }
 
-let current = {};
-let currentId = null;
-const defaultState = () => ({
-  ev: {
-    description:'', location:'', eventDate:'', reportDate:'',
-    employee: { firstName:'', lastName:'', title:'', phone:'', empNo:'', hireDate:'', division:'', workLocation:'' }
-  },
-  inv: { whatHappened:'', normal:'', procedure:'', why:'', riskMgmt:'', comments:'' },
-  breach: { type:'', description:'' },
-  assess: { answers: {}, decision:'', currentKey:null, path:[], action:'' },
-  system: { ok:'', staffing:'', equipment:'', training:'', environment:'', it:'', actionPlan:'' }
-});
+/* ===== Config ===== */
+var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec';
+var SHEET_NAME = 'Cases';
 
-const byId = id => document.getElementById(id);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-const setActiveTab = (name) => {
-  $$('[data-panel]').forEach(p => p.classList.toggle('hidden', p.getAttribute('data-panel')!==name));
-  $$('.tab').forEach(t => t.classList.toggle('bg-emerald-100', t.dataset.tab===name));
+/* ===== State ===== */
+var current = {};
+var currentId = null;
+function defaultState(){
+  return {
+    ev:{ description:'', location:'', eventDate:'', reportDate:'',
+      employee:{ firstName:'', lastName:'', title:'', phone:'', empNo:'', hireDate:'', division:'', workLocation:'' } },
+    inv:{ whatHappened:'', normal:'', procedure:'', why:'', riskMgmt:'', comments:'' },
+    breach:{ type:'', description:'' },
+    assess:{ answers:{}, decision:'', currentKey:null, path:[], action:'' },
+    system:{ ok:'', staffing:'', equipment:'', training:'', environment:'', it:'', policy:'', actionPlan:'' }
+  };
+}
+
+/* ===== Assessment trees (no optional chaining) ===== */
+var TREES = {
+  duty_harm:{ first:'purpose', text:{
+      purpose:"Was it the employee's purpose to cause the harm?",
+      knowingly:"Did the employee knowingly cause the harm?",
+      lesser_evil:"Was the harm justified as the lesser of two evils?",
+      substantial:"Did the behavior represent a substantial and unjustifiable risk?",
+      conscious_disregard:"Did the employee consciously disregard this substantial and unjustifiable risk?",
+      should_have_known:"Given this, should the employee have known they were taking a substantial and unjustifiable risk?",
+      choose_behavior:"Did the employee choose the behavior?"
+    }, next:function(key,A){
+      switch(key){
+        case 'purpose': return A.purpose==='yes'?{done:true,decision:'Consider punitive action'}:{next:'knowingly'};
+        case 'knowingly': return A.knowingly==='yes'?{next:'lesser_evil'}:{next:'substantial'};
+        case 'lesser_evil': return A.lesser_evil==='yes'?{done:true,decision:'Support employee in decision'}:{done:true,decision:'Consider remedial/punitive action'};
+        case 'substantial': return A.substantial==='yes'?{next:'conscious_disregard'}:{done:true,decision:'Do not consider employee action'};
+        case 'conscious_disregard': return A.conscious_disregard==='yes'?{done:true,decision:'Consider remedial/punitive action'}:{next:'should_have_known'};
+        case 'should_have_known': return A.should_have_known==='yes'?{next:'choose_behavior'}:{done:true,decision:'Do not consider employee action'};
+        case 'choose_behavior': return A.choose_behavior==='yes'?{done:true,decision:'Coach employee and conduct at-risk behavior investigation'}:{done:true,decision:'Console employee and conduct human error investigation'};
+      }
+    }},
+  duty_rule:{ first:'knew_rule', text:{
+      knew_rule:'Was the duty to follow a rule known to the employee?',
+      possible:'Was it possible?',
+      benefit_outweigh:'Did the benefit outweigh the risks?',
+      good_faith:'Did the employee have a good-faith but mistaken belief that the violation was insignificant or justified?'
+    }, next:function(key,A){
+      switch(key){
+        case 'knew_rule': return A.knew_rule==='yes'?{next:'possible'}:{done:true,decision:'Investigate circumstances leading to failure to know of duty'};
+        case 'possible': return A.possible==='yes'?{next:'benefit_outweigh'}:{done:true,decision:'Investigate circumstances leading to impossibility'};
+        case 'benefit_outweigh': return A.benefit_outweigh==='yes'?{done:true,decision:'Support employee for decision to violate rule'}:{next:'good_faith'};
+        case 'good_faith': return A.good_faith==='yes'?{done:true,decision:'Coach employee and conduct at-risk behavior investigation'}:{done:true,decision:'Consider remedial/punitive action'};
+      }
+    }},
+  duty_outcome:{ first:'knew_outcome', text:{
+      knew_outcome:'Was the duty to produce an outcome known to the employee?',
+      possible:'Was it possible?',
+      benefit_outweigh:'Did the benefit outweigh the risks?',
+      acceptable_perf:'Is the employee at an acceptable level of performance?'
+    }, next:function(key,A){
+      switch(key){
+        case 'knew_outcome': return A.knew_outcome==='yes'?{next:'possible'}:{done:true,decision:'Investigate circumstances leading to failure to know of duty'};
+        case 'possible': return A.possible==='yes'?{next:'benefit_outweigh'}:{done:true,decision:'Investigate circumstances leading to impossibility'};
+        case 'benefit_outweigh': return A.benefit_outweigh==='yes'?{done:true,decision:'Support employee in decision'}:{next:'acceptable_perf'};
+        case 'acceptable_perf': return A.acceptable_perf==='yes'?{done:true,decision:'Accept outcome'}:{done:true,decision:'Assist employee in producing better outcomes, or consider punitive action'};
+      }
+    }},
+  repetitive:{ first:'system_source', text:{
+      system_source:'Does the source of the series of human errors or at-risk behaviors reside within the system?'
+    }, next:function(key,A){
+      return A.system_source==='yes'?{done:true,decision:'Investigate circumstances leading to system risk'}:{done:true,decision:'Consider remedial/punitive action'};
+    }}
 };
-const toast = (msg) => alert(msg);
 
-function newRecord(){ current = defaultState(); currentId=null; syncToUI(); renderReport(); }
-
+/* ===== UI sync ===== */
 function syncToUI(){
   byId('ev_description').value = current.ev.description;
   byId('ev_location').value = current.ev.location;
@@ -278,127 +350,68 @@ function syncToUI(){
   byId('emp_hireDate').value = current.ev.employee.hireDate;
   byId('emp_division').value = current.ev.employee.division;
   byId('emp_workLocation').value = current.ev.employee.workLocation;
-  $$('input[name="breach"]').forEach(r=> r.checked = (r.value===current.breach.type));
+
+  var br = document.querySelectorAll('input[name="breach"]');
+  for (var i=0;i<br.length;i++){ br[i].checked = (br[i].value===current.breach.type); }
   byId('breach_description').value = current.breach.description;
-  $$('input[name="sys_ok"]').forEach(r=> r.checked = (r.value===current.system.ok));
+
+  var so = document.querySelectorAll('input[name="sys_ok"]');
+  for (var j=0;j<so.length;j++){ so[j].checked = (so[j].value===current.system.ok); }
   byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no');
   byId('sys_staffing').value = current.system.staffing;
   byId('sys_equipment').value = current.system.equipment;
   byId('sys_training').value = current.system.training;
   byId('sys_environment').value = current.system.environment;
   byId('sys_it').value = current.system.it;
+  byId('sys_policy').value = current.system.policy;
   byId('sys_actionPlan').value = current.system.actionPlan;
-  renderAssessment();
-}
 
+  renderAssessment();
+  renderReport();
+}
 function readFromUI(){
   current.ev.description = byId('ev_description').value.trim();
   current.ev.location = byId('ev_location').value.trim();
   current.ev.eventDate = byId('ev_eventDate').value;
   current.ev.reportDate = byId('ev_reportDate').value;
-  Object.assign(current.ev.employee, {
-    firstName: byId('emp_firstName').value.trim(),
-    lastName: byId('emp_lastName').value.trim(),
-    title: byId('emp_title').value.trim(),
-    phone: byId('emp_phone').value.trim(),
-    empNo: byId('emp_number').value.trim(),
-    hireDate: byId('emp_hireDate').value,
-    division: byId('emp_division').value.trim(),
-    workLocation: byId('emp_workLocation').value.trim(),
-  });
-  current.breach.type = (document.querySelector('input[name="breach"]:checked')||{}).value||'';
+  var emp = current.ev.employee;
+  emp.firstName = byId('emp_firstName').value.trim();
+  emp.lastName = byId('emp_lastName').value.trim();
+  emp.title = byId('emp_title').value.trim();
+  emp.phone = byId('emp_phone').value.trim();
+  emp.empNo = byId('emp_number').value.trim();
+  emp.hireDate = byId('emp_hireDate').value;
+  emp.division = byId('emp_division').value.trim();
+  emp.workLocation = byId('emp_workLocation').value.trim();
+
+  var bsel = document.querySelector('input[name="breach"]:checked');
+  current.breach.type = bsel ? bsel.value : '';
   current.breach.description = byId('breach_description').value.trim();
-  current.system.ok = (document.querySelector('input[name="sys_ok"]:checked')||{}).value||'';
+
+  var ssel = document.querySelector('input[name="sys_ok"]:checked');
+  current.system.ok = ssel ? ssel.value : '';
   current.system.staffing = byId('sys_staffing').value;
   current.system.equipment = byId('sys_equipment').value;
   current.system.training = byId('sys_training').value;
   current.system.environment = byId('sys_environment').value;
   current.system.it = byId('sys_it').value;
+  current.system.policy = byId('sys_policy').value;
   current.system.actionPlan = byId('sys_actionPlan').value;
 }
 
-const TREES = {
-  duty_harm: {
-    first: 'purpose',
-    text: {
-      purpose: "Was it the employee's purpose to cause the harm?",
-      knowingly: "Did the employee knowingly cause the harm?",
-      lesser_evil: "Was the harm justified as the lesser of two evils?",
-      substantial: "Did the behavior represent a substantial and unjustifiable risk?",
-      conscious_disregard: "Did the employee consciously disregard this substantial and unjustifiable risk?",
-      should_have_known: "Given this, should the employee have known they were taking a substantial and unjustifiable risk?",
-      choose_behavior: "Did the employee choose the behavior?"
-    },
-    next(key, A){
-      switch(key){
-        case 'purpose': return A.purpose==='yes' ? {done:true, decision:'Consider punitive action'} : {next:'knowingly'};
-        case 'knowingly': return A.knowingly==='yes' ? {next:'lesser_evil'} : {next:'substantial'};
-        case 'lesser_evil': return A.lesser_evil==='yes' ? {done:true, decision:'Support employee in decision'} : {done:true, decision:'Consider remedial/punitive action'};
-        case 'substantial': return A.substantial==='yes' ? {next:'conscious_disregard'} : {done:true, decision:'Do not consider employee action'};
-        case 'conscious_disregard': return A.conscious_disregard==='yes' ? {done:true, decision:'Consider remedial/punitive action'} : {next:'should_have_known'};
-        case 'should_have_known': return A.should_have_known==='yes' ? {next:'choose_behavior'} : {done:true, decision:'Do not consider employee action'};
-        case 'choose_behavior': return A.choose_behavior==='yes' ? {done:true, decision:'Coach employee and conduct at-risk behavior investigation'} : {done:true, decision:'Console employee and conduct human error investigation'};
-      }
-    }
-  },
-  duty_rule: {
-    first: 'knew_rule',
-    text: {
-      knew_rule: 'Was the duty to follow a rule known to the employee?',
-      possible: 'Was it possible?',
-      benefit_outweigh: 'Did the benefit outweigh the risks?',
-      good_faith: 'Did the employee have a good-faith but mistaken belief that the violation was insignificant or justified?'
-    },
-    next(key, A){
-      switch(key){
-        case 'knew_rule': return A.knew_rule==='yes' ? {next:'possible'} : {done:true, decision:'Investigate circumstances leading to failure to know of duty'};
-        case 'possible': return A.possible==='yes' ? {next:'benefit_outweigh'} : {done:true, decision:'Investigate circumstances leading to impossibility'};
-        case 'benefit_outweigh': return A.benefit_outweigh==='yes' ? {done:true, decision:'Support employee for decision to violate rule'} : {next:'good_faith'};
-        case 'good_faith': return A.good_faith==='yes' ? {done:true, decision:'Coach employee and conduct at-risk behavior investigation'} : {done:true, decision:'Consider remedial/punitive action'};
-      }
-    }
-  },
-  duty_outcome: {
-    first: 'knew_outcome',
-    text: {
-      knew_outcome: 'Was the duty to produce an outcome known to the employee?',
-      possible: 'Was it possible?',
-      benefit_outweigh: 'Did the benefit outweigh the risks?',
-      acceptable_perf: 'Is the employee at an acceptable level of performance?'
-    },
-    next(key, A){
-      switch(key){
-        case 'knew_outcome': return A.knew_outcome==='yes' ? {next:'possible'} : {done:true, decision:'Investigate circumstances leading to failure to know of duty'};
-        case 'possible': return A.possible==='yes' ? {next:'benefit_outweigh'} : {done:true, decision:'Investigate circumstances leading to impossibility'};
-        case 'benefit_outweigh': return A.benefit_outweigh==='yes' ? {done:true, decision:'Support employee in decision'} : {next:'acceptable_perf'};
-        case 'acceptable_perf': return A.acceptable_perf==='yes' ? {done:true, decision:'Accept outcome'} : {done:true, decision:'Assist employee in producing better outcomes, or consider punitive action'};
-      }
-    }
-  },
-  repetitive: {
-    first: 'system_source',
-    text: {
-      system_source: 'Does the source of the series of human errors or at-risk behaviors reside within the system?'
-    },
-    next(key, A){
-      return A.system_source==='yes' ? {done:true, decision:'Investigate circumstances leading to system risk'} : {done:true, decision:'Consider remedial/punitive action'};
-    }
-  }
-};
-
+/* ===== Assessment rendering ===== */
 function startAssessment(){
-  const type = current.breach.type;
+  var type = current.breach.type;
   current.assess.answers = {};
   current.assess.path = [];
   current.assess.action = '';
-  current.assess.currentKey = TREES[type]?.first || null;
+  current.assess.currentKey = (TREES[type] && TREES[type].first) ? TREES[type].first : null;
   renderAssessment();
 }
-
 function renderAssessment(){
-  const panel = byId('assessmentQuestions');
+  var panel = byId('assessmentQuestions'); if(!panel) return;
   panel.innerHTML = '';
-  const type = current.breach.type;
+  var type = current.breach.type;
 
   if(!type){
     byId('decisionBox').textContent='';
@@ -411,51 +424,51 @@ function renderAssessment(){
     return;
   }
 
-  (current.assess.path||[]).forEach((step, idx)=>{
-    const block = document.createElement('div');
+  for (var i=0;i<(current.assess.path||[]).length;i++){
+    var step = current.assess.path[i];
+    var block = document.createElement('div');
     block.className = 'flex items-center justify-between border rounded-lg p-3';
-    block.innerHTML = `<div class="pr-4">${step.q}</div>
-      <div class="flex items-center gap-6">
-        <label class="flex items-center gap-2">
-          <input type="radio" name="ass_prev_${idx}" data-index="${idx}" value="yes" ${step.a==='yes'?'checked':''}>
-          <span>Yes</span>
-        </label>
-        <label class="flex items-center gap-2">
-          <input type="radio" name="ass_prev_${idx}" data-index="${idx}" value="no" ${step.a==='no'?'checked':''}>
-          <span>No</span>
-        </label>
-      </div>`;
+    block.innerHTML = '<div class="pr-4">'+step.q+'</div>\
+      <div class="flex items-center gap-6">\
+        <label class="flex items-center gap-2">\
+          <input type="radio" name="ass_prev_'+i+'" data-index="'+i+'" value="yes" '+(step.a==='yes'?'checked':'')+'>\
+          <span>Yes</span>\
+        </label>\
+        <label class="flex items-center gap-2">\
+          <input type="radio" name="ass_prev_'+i+'" data-index="'+i+'" value="no" '+(step.a==='no'?'checked':'')+'>\
+          <span>No</span>\
+        </label>\
+      </div>';
     panel.appendChild(block);
-  });
+  }
 
   if(!current.assess.currentKey){
     byId('decisionBox').textContent = current.assess.decision || '';
-    const actionWrap = document.createElement('div');
+    var actionWrap = document.createElement('div');
     actionWrap.className = 'mt-3';
-    actionWrap.innerHTML = `<label class="block text-sm mb-1">Action</label>
-      <textarea id="ass_action" rows="4" class="w-full p-3 border rounded-lg" placeholder="Document the action to be taken at this endpoint...">${current.assess.action||''}</textarea>`;
+    actionWrap.innerHTML = '<label class="block text-sm mb-1">Action</label>\
+      <textarea id="ass_action" rows="4" class="w-full p-3 border rounded-lg" placeholder="Document the action to be taken at this endpoint...">'+(current.assess.action||'')+'</textarea>';
     panel.appendChild(actionWrap);
     return;
   }
 
-  const key = current.assess.currentKey;
-  const text = TREES[type].text[key];
-  const row = document.createElement('div');
+  var key = current.assess.currentKey;
+  var text = TREES[type].text[key];
+  var row = document.createElement('div');
   row.className='flex items-center justify-between border rounded-lg p-3';
-  row.innerHTML = `<div class="pr-4">${text}</div>
-    <div class="flex items-center gap-6">
-      <label class="flex items-center gap-2"><input type="radio" name="step_answer" value="yes"> <span>Yes</span></label>
-      <label class="flex items-center gap-2"><input type="radio" name="step_answer" value="no"> <span>No</span></label>
-    </div>`;
+  row.innerHTML = '<div class="pr-4">'+text+'</div>\
+    <div class="flex items-center gap-6">\
+      <label class="flex items-center gap-2"><input type="radio" name="step_answer" value="yes"> <span>Yes</span></label>\
+      <label class="flex items-center gap-2"><input type="radio" name="step_answer" value="no"> <span>No</span></label>\
+    </div>';
   panel.appendChild(row);
 }
-
 function handleStepAnswer(val){
-  const type = current.breach.type; if(!type) return;
-  const key = current.assess.currentKey; if(!key) return;
-  const A = current.assess.answers; A[key]=val;
-  current.assess.path.push({key, q:TREES[type].text[key], a:val});
-  const move = TREES[type].next(key, A);
+  var type = current.breach.type; if(!type) return;
+  var key = current.assess.currentKey; if(!key) return;
+  var A = current.assess.answers; A[key]=val;
+  current.assess.path.push({key:key, q:TREES[type].text[key], a:val});
+  var move = TREES[type].next(key, A);
   if(move.done){
     current.assess.currentKey = null;
     current.assess.decision = move.decision;
@@ -467,193 +480,92 @@ function handleStepAnswer(val){
     renderAssessment();
   }
 }
-
 function handlePrevAnswer(index, val){
-  const type = current.breach.type; if(!type) return;
+  var type = current.breach.type; if(!type) return;
   if(!current.assess.path || index<0 || index>=current.assess.path.length) return;
-  const changedKey = current.assess.path[index].key;
+  var changedKey = current.assess.path[index].key;
   current.assess.path[index].a = val;
   current.assess.answers[changedKey] = val;
-  const removed = current.assess.path.splice(index+1);
-  removed.forEach(s=> delete current.assess.answers[s.key]);
-  const move = TREES[type].next(changedKey, current.assess.answers);
-  if(move.done){
-    current.assess.currentKey = null;
-    current.assess.decision = move.decision;
-  } else {
-    current.assess.currentKey = move.next;
-    current.assess.decision = '';
-  }
+  var removed = current.assess.path.splice(index+1);
+  for (var i=0;i<removed.length;i++){ delete current.assess.answers[removed[i].key]; }
+  var move = TREES[type].next(changedKey, current.assess.answers);
+  if(move.done){ current.assess.currentKey = null; current.assess.decision = move.decision; }
+  else { current.assess.currentKey = move.next; current.assess.decision = ''; }
   renderAssessment();
   byId('decisionBox').textContent = current.assess.decision||'';
 }
 
+/* ===== Report ===== */
 function renderReport(){
-  readFromUI();
-  const c = current; const R = byId('reportContainer');
-  const e = c.ev.employee;
-  const breachLabel = {
-    'duty_harm':'Duty to Avoid Causing Unjustifiable Risk or Harm',
-    'duty_rule':'Duty to Follow Procedural Rules',
-    'duty_outcome':'Duty to Produce Outcomes',
-    'repetitive':'Repetitive Human Error or At-Risk Behavior',
-    'no_breach':'No Breach'
-  }[c.breach.type] || '';
+  var c = current, R = byId('reportContainer'); if(!R) return;
+  var e = c.ev.employee;
+  var labels = {
+    duty_harm:'Duty to Avoid Causing Unjustifiable Risk or Harm',
+    duty_rule:'Duty to Follow Procedural Rules',
+    duty_outcome:'Duty to Produce Outcomes',
+    repetitive:'Repetitive Human Error or At-Risk Behavior',
+    no_breach:'No Breach'
+  };
+  var breachLabel = labels[c.breach.type] || '';
+  var pathHTML = (c.assess.path && c.assess.path.length) ? (
+    '<div class="mt-3"><table class="min-w-full text-sm border">\
+      <thead class="bg-neutral-100 text-neutral-700">\
+        <tr><th class="px-2 py-1 text-left">Question</th><th class="px-2 py-1 text-left">Answer</th></tr>\
+      </thead><tbody>' +
+      c.assess.path.map(function(p){ return '<tr class="border-t"><td class="px-2 py-1">'+escapeHTML(p.q)+'</td><td class="px-2 py-1">'+(p.a==='yes'?'Yes':'No')+'</td></tr>'; }).join('') +
+    '</tbody></table></div>'
+  ) : '';
 
-  R.innerHTML = `
-    <section class="border rounded-lg p-4">
-      <h3 class="font-semibold text-emerald-800 mb-2">Event Details</h3>
-      <div><b>Description:</b> ${escapeHTML(c.ev.description)}</div>
-      <div class="grid grid-cols-2 gap-2 mt-2">
-        <div><b>Location:</b> ${escapeHTML(c.ev.location)}</div>
-        <div><b>Work Location:</b> ${escapeHTML(e.workLocation)}</div>
-        <div><b>Event Date:</b> ${c.ev.eventDate||''}</div>
-        <div><b>Report Assessment Date:</b> ${c.ev.reportDate||''}</div>
-      </div>
-    </section>
-    <section class="border rounded-lg p-4">
-      <h3 class="font-semibold text-emerald-800 mb-2">Employee</h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div><b>Name:</b> ${escapeHTML(e.firstName)} ${escapeHTML(e.lastName)}</div>
-        <div><b>Title:</b> ${escapeHTML(e.title)}</div>
-        <div><b>Phone:</b> ${escapeHTML(e.phone)}</div>
-        <div><b>Employee No.:</b> ${escapeHTML(e.empNo)}</div>
-        <div><b>Hire Date:</b> ${e.hireDate||''}</div>
-        <div><b>Division:</b> ${escapeHTML(e.division)}</div>
-      </div>
-    </section>
-    <section class="border rounded-lg p-4">
-      <h3 class="font-semibold text-emerald-800 mb-2">Breach</h3>
-      <div><b>Type:</b> ${escapeHTML(breachLabel)}</div>
-      <div class="mt-1"><b>Description:</b> ${escapeHTML(c.breach.description)}</div>
-      <div class="mt-2"><b>Assessment Decision:</b> ${escapeHTML(c.assess.decision)}</div>
-      ${(c.assess.path&&c.assess.path.length)?`
-      <div class="mt-3">
-        <table class="min-w-full text-sm border">
-          <thead class="bg-neutral-100 text-neutral-700">
-            <tr><th class="px-2 py-1 text-left">Question</th><th class="px-2 py-1 text-left">Answer</th></tr>
-          </thead>
-          <tbody>
-            ${c.assess.path.map(p=>`<tr class="border-t"><td class="px-2 py-1">${escapeHTML(p.q)}</td><td class="px-2 py-1">${p.a==='yes'?'Yes':'No'}</td></tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`:''}
-      ${c.assess.action?`<div class="mt-2"><b>Assessment Action:</b><br>${escapeHTML(c.assess.action)}</div>`:''}
-    </section>
-    <section class="border rounded-lg p-4">
-      <h3 class="font-semibold text-emerald-800 mb-2">System Test</h3>
-      <div><b>System appears designed to achieve intended results?</b> ${c.system.ok||''}</div>
-      ${c.system.ok==='no' ? `
-        <div class="grid grid-cols-2 gap-2 mt-2">
-          <div><b>Staffing:</b><br>${escapeHTML(c.system.staffing)}</div>
-          <div><b>Equipment:</b><br>${escapeHTML(c.system.equipment)}</div>
-          <div><b>Training:</b><br>${escapeHTML(c.system.training)}</div>
-          <div><b>Environment:</b><br>${escapeHTML(c.system.environment)}</div>
-          <div><b>IT:</b><br>${escapeHTML(c.system.it)}</div>
-        </div>
-        <div class="mt-2"><b>Action Plan:</b><br>${escapeHTML(c.system.actionPlan)}</div>
-      `:''}
-    </section>`;
+  R.innerHTML =
+  '<section class="border rounded-lg p-4">\
+    <h3 class="font-semibold text-emerald-800 mb-2">Event Details</h3>\
+    <div><b>Description:</b> '+escapeHTML(c.ev.description)+'</div>\
+    <div class="grid grid-cols-2 gap-2 mt-2">\
+      <div><b>Location:</b> '+escapeHTML(c.ev.location)+'</div>\
+      <div><b>Work Location:</b> '+escapeHTML(e.workLocation)+'</div>\
+      <div><b>Event Date:</b> '+(c.ev.eventDate||'')+'</div>\
+      <div><b>Report Assessment Date:</b> '+(c.ev.reportDate||'')+'</div>\
+    </div>\
+  </section>\
+  <section class="border rounded-lg p-4">\
+    <h3 class="font-semibold text-emerald-800 mb-2">Employee</h3>\
+    <div class="grid grid-cols-2 gap-2">\
+      <div><b>Name:</b> '+escapeHTML(e.firstName)+' '+escapeHTML(e.lastName)+'</div>\
+      <div><b>Title:</b> '+escapeHTML(e.title)+'</div>\
+      <div><b>Phone:</b> '+escapeHTML(e.phone)+'</div>\
+      <div><b>Employee No.:</b> '+escapeHTML(e.empNo)+'</div>\
+      <div><b>Hire Date:</b> '+(e.hireDate||'')+'</div>\
+      <div><b>Division:</b> '+escapeHTML(e.division)+'</div>\
+    </div>\
+  </section>\
+  <section class="border rounded-lg p-4">\
+    <h3 class="font-semibold text-emerald-800 mb-2">Breach</h3>\
+    <div><b>Type:</b> '+escapeHTML(breachLabel)+'</div>\
+    <div class="mt-1"><b>Description:</b> '+escapeHTML(c.breach.description)+'</div>\
+    <div class="mt-2"><b>Assessment Decision:</b> '+escapeHTML(c.assess.decision)+'</div>' +
+    pathHTML +
+    (c.assess.action ? '<div class="mt-2"><b>Assessment Action:</b><br>'+escapeHTML(c.assess.action)+'</div>' : '') +
+  '</section>\
+  <section class="border rounded-lg p-4">\
+    <h3 class="font-semibold text-emerald-800 mb-2">System Test</h3>\
+    <div><b>System appears designed to achieve intended results?</b> '+(c.system.ok||'')+'</div>' +
+    (c.system.ok==='no' ? '\
+      <div class="grid grid-cols-2 gap-2 mt-2">\
+        <div><b>Staffing:</b><br>'+escapeHTML(c.system.staffing)+'</div>\
+        <div><b>Equipment:</b><br>'+escapeHTML(c.system.equipment)+'</div>\
+        <div><b>Training:</b><br>'+escapeHTML(c.system.training)+'</div>\
+        <div><b>Environment:</b><br>'+escapeHTML(c.system.environment)+'</div>\
+        <div><b>IT:</b><br>'+escapeHTML(c.system.it)+'</div>\
+        <div><b>Policy / Procedure:</b><br>'+escapeHTML(c.system.policy)+'</div>\
+      </div>\
+      <div class="mt-2"><b>Action Plan:</b><br>'+escapeHTML(c.system.actionPlan)+'</div>'
+    : '') +
+  '</section>';
 }
 
-function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
-
-// ---- API: avoid preflight by NOT setting Content-Type (let it be text/plain) ----
-async function api(method, payload){
-  let res, text;
-  try {
-    res = await fetch(WEB_APP_URL, {
-      method:'POST',
-      // No headers -> browser sends text/plain; no OPTIONS preflight to Apps Script
-      body: JSON.stringify({ method, sheet: SHEET_NAME, payload })
-    });
-  } catch (netErr) {
-    throw new Error('Network error contacting backend: ' + netErr.message);
-  }
-
-  try { text = await res.text(); }
-  catch (readErr) { throw new Error('Failed to read backend response: ' + readErr.message); }
-
-  let data;
-  try { data = JSON.parse(text); }
-  catch { throw new Error(`Bad JSON from backend (HTTP ${res.status}): ${text.slice(0,200)}`); }
-
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${data && data.error ? data.error : 'Unknown error'}`);
-  if (!data.ok) throw new Error(data.error || 'API error without message');
-  return data;
-}
-
-async function save(){
-  readFromUI();
-
-  if(current.breach.type==='no_breach') setActiveTab('system');
-  if(current.system.ok==='no' && !current.system.actionPlan.trim()){
-    setActiveTab('system');
-    return toast('Action Plan is required when System Test = No.');
-  }
-
-  try {
-    const rec = { id: currentId, data: current };
-    const { id } = await api('save', rec);
-    currentId = id;
-    toast('Saved');
-  } catch(err){
-    console.error('Save error:', err);
-    return toast('Save failed: ' + err.message);
-  }
-
-  try { await loadRows(); }
-  catch(err){ console.error('List error after save:', err); toast('List refresh failed: ' + err.message); }
-}
-
-async function loadRows(){
-  const q = byId('searchBox').value.trim();
-  const { rows } = await api('list', { q });
-  const tbody = byId('rowsTable');
-  tbody.innerHTML = rows.map(r=> `
-    <tr class="border-b">
-      <td class="px-2 py-2">${r.id}</td>
-      <td class="px-2 py-2">${r.eventDate||''}</td>
-      <td class="px-2 py-2">${escapeHTML(r.description||'')}</td>
-      <td class="px-2 py-2">${escapeHTML(r.division||'')}</td>
-      <td class="px-2 py-2">${escapeHTML(r.breach||'')}</td>
-      <td class="px-2 py-2">
-        <button data-id="${r.id}" class="btnEdit text-emerald-700 mr-2">Edit</button>
-        <button data-id="${r.id}" class="btnDelete text-red-700">Delete</button>
-      </td>
-    </tr>`).join('');
-  $$('.btnEdit').forEach(b=> b.onclick = ()=> openRow(b.dataset.id));
-  $$('.btnDelete').forEach(b=> b.onclick = ()=> delRow(b.dataset.id));
-}
-
-async function openRow(id){
-  try {
-    const { record } = await api('get', { id });
-    current = record.data; currentId = record.id; syncToUI(); setActiveTab('event'); renderReport();
-  } catch(err){
-    console.error('Open failed:', err);
-    toast('Open failed: ' + err.message);
-  }
-}
-async function delRow(id){
-  try {
-    if(!confirm('Delete this entry?')) return;
-    await api('delete', { id }); loadRows();
-  } catch(err){
-    console.error('Delete failed:', err);
-    toast('Delete failed: ' + err.message);
-  }
-}
-
-function exportCSV(){
-  const flat = flattenCurrent();
-  const headers = Object.keys(flat).join(',');
-  const values = Object.values(flat).map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
-  const blob = new Blob([headers+'\n'+values],{type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='just-culture-case.csv'; a.click();
-}
+/* ===== CSV ===== */
 function flattenCurrent(){
-  const c=current; const e=c.ev.employee; const a=c.assess; const s=c.system;
+  var c=current, e=c.ev.employee, a=c.assess, s=c.system;
   return {
     id: currentId||'',
     description:c.ev.description, location:c.ev.location, eventDate:c.ev.eventDate, reportDate:c.ev.reportDate,
@@ -661,56 +573,143 @@ function flattenCurrent(){
     inv_whatHappened:c.inv.whatHappened, inv_normal:c.inv.normal, inv_procedure:c.inv.procedure, inv_why:c.inv.why, inv_riskMgmt:c.inv.riskMgmt, inv_comments:c.inv.comments,
     breach:c.breach.type, breach_desc:c.breach.description,
     decision:a.decision, assessment_action:a.action,
-    system_ok:s.ok, system_actionPlan:s.actionPlan
+    system_ok:s.ok, system_actionPlan:s.actionPlan, system_policy:s.policy
   };
 }
+function exportCSV(){
+  var flat = flattenCurrent();
+  var headers = Object.keys(flat).join(',');
+  var values = Object.values(flat).map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
+  var blob = new Blob([headers+'\n'+values],{type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='just-culture-case.csv'; a.click();
+}
 
-window.addEventListener('DOMContentLoaded', ()=>{
-  $$('.tab').forEach(t=> t.onclick = ()=> setActiveTab(t.dataset.tab));
-  setActiveTab('event');
-
-  $$('#cards input, #cards textarea').forEach(el =>
-    el.addEventListener('change', ()=>{ readFromUI(); renderReport(); })
-  );
-
-  document.getElementById('cards').onchange = (e)=>{
-    if (e.target && e.target.name === 'step_answer') {
-      handleStepAnswer(e.target.value);
-      renderReport();
-    }
-    if (e.target && typeof e.target.name === 'string' && e.target.name.startsWith('ass_prev')) {
-      const idx = parseInt(e.target.dataset.index,10);
-      handlePrevAnswer(idx, e.target.value);
-      renderReport();
-    }
-    if (e.target && e.target.id === 'ass_action') {
-      current.assess.action = e.target.value;
-      renderReport();
-    }
-  };
-
-  $$('input[name="breach"]').forEach(el=> el.addEventListener('change', ()=>{
-    readFromUI();
-    startAssessment();
-    renderAssessment();
-  }));
-
-  $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ 
-    readFromUI(); 
-    byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); 
-  }));
-
-  byId('btnNew').onclick = newRecord;
-  byId('btnSave').onclick = save;
-  byId('btnExportCSV').onclick = exportCSV;
-  byId('btnExportPDF').onclick = ()=> window.print();
-
-  byId('btnRefresh').onclick = loadRows;
-  byId('searchBox').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadRows, 300); };
-
-  newRecord();
+/* ===== Backend API (no preflight) ===== */
+async function api(method, payload){
+  var res, text;
+  try{
+    res = await fetch(WEB_APP_URL, { method:'POST', body: JSON.stringify({ method:method, sheet:SHEET_NAME, payload:payload }) });
+  }catch(netErr){ throw new Error('Network error contacting backend: '+netErr.message); }
+  try{ text = await res.text(); }catch(readErr){ throw new Error('Failed to read backend response: '+readErr.message); }
+  var data; try{ data = JSON.parse(text); }catch(e){ throw new Error('Bad JSON from backend (HTTP '+res.status+'): '+text.slice(0,200)); }
+  if(!res.ok) throw new Error('HTTP '+res.status+': '+(data && data.error ? data.error : 'Unknown error'));
+  if(!data.ok) throw new Error(data.error || 'API error without message');
+  return data;
+}
+async function loadRows(){
+  var q = byId('searchBox').value.trim();
+  var out = await api('list', { q:q });
+  var rows = out.rows || [];
+  var tbody = byId('rowsTable'); if(!tbody) return;
+  var html = '';
+  for(var i=0;i<rows.length;i++){
+    var r = rows[i];
+    html += '<tr class="border-b">\
+      <td class="px-2 py-2">'+r.id+'</td>\
+      <td class="px-2 py-2">'+(r.eventDate||'')+'</td>\
+      <td class="px-2 py-2">'+escapeHTML(r.description||'')+'</td>\
+      <td class="px-2 py-2">'+escapeHTML(r.division||'')+'</td>\
+      <td class="px-2 py-2">'+escapeHTML(r.breach||'')+'</td>\
+      <td class="px-2 py-2">\
+        <button data-action="edit" data-id="'+r.id+'" class="text-emerald-700 mr-2">Edit</button>\
+        <button data-action="delete" data-id="'+r.id+'" class="text-red-700">Delete</button>\
+      </td></tr>';
+  }
+  tbody.innerHTML = html;
+}
+async function openRow(id){
+  var out = await api('get', { id:id });
+  current = out.record.data; currentId = out.record.id;
+  syncToUI(); setActiveTab('event');
+}
+async function delRow(id){
+  if(!confirm('Delete this entry?')) return;
+  await api('delete', { id:id });
   loadRows();
-});
+}
+async function save(){
+  readFromUI();
+  if(current.breach.type==='no_breach') setActiveTab('system');
+  if(current.system.ok==='no' && !current.system.actionPlan.trim()){
+    setActiveTab('system'); return toast('Action Plan is required when System Test = No.');
+  }
+  try{
+    var rec = { id: currentId, data: current };
+    var resp = await api('save', rec);
+    currentId = resp.id;
+    toast('Saved');
+  }catch(err){
+    console.error('Save error:', err); return toast('Save failed: '+err.message);
+  }
+  try{ await loadRows(); }catch(err){ console.error('List error:', err); toast('List refresh failed: '+err.message); }
+}
+
+/* ===== Delegated UI events ===== */
+function wireDelegatedEvents(){
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t) return;
+
+    // Tabs
+    var tabBtn = t.closest ? t.closest('.tab') : null;
+    if(tabBtn && tabBtn.dataset && tabBtn.dataset.tab){
+      setActiveTab(tabBtn.dataset.tab);
+      return;
+    }
+
+    // Top actions
+    if(t.dataset && t.dataset.action){
+      if(t.dataset.action==='new') { current = defaultState(); currentId=null; syncToUI(); return; }
+      if(t.dataset.action==='save'){ save(); return; }
+      if(t.dataset.action==='print'){ window.print(); return; }
+      if(t.dataset.action==='csv'){ exportCSV(); return; }
+      if(t.dataset.action==='refresh'){ loadRows(); return; }
+      if(t.dataset.action==='edit'){ openRow(t.dataset.id); return; }
+      if(t.dataset.action==='delete'){ delRow(t.dataset.id); return; }
+    }
+  });
+
+  // Form change events (single delegate on main)
+  var cards = byId('cards');
+  if(cards){
+    cards.addEventListener('change', function(e){
+      var t = e.target;
+      if(!t) return;
+
+      if(t.name==='step_answer'){ handleStepAnswer(t.value); renderReport(); return; }
+      if(typeof t.name==='string' && t.name.indexOf('ass_prev_')===0){
+        var idx = parseInt(t.getAttribute('data-index')||'-1',10);
+        handlePrevAnswer(idx, t.value); renderReport(); return;
+      }
+      if(t.id==='ass_action'){ current.assess.action = t.value; renderReport(); return; }
+      if(t.name==='breach'){ readFromUI(); startAssessment(); renderAssessment(); return; }
+      if(t.name==='sys_ok'){ readFromUI(); byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); renderReport(); return; }
+
+      // any other field: keep model + report in sync
+      readFromUI(); renderReport();
+    });
+  }
+}
+
+/* ===== Boot ===== */
+(function boot(){
+  try{
+    wireDelegatedEvents();
+    setActiveTab('event');
+    current = defaultState();
+    syncToUI();
+    loadRows(); // safe if backend not ready; errors are shown via toast in save/list path
+    // Live search debounce
+    var sb = byId('searchBox');
+    if(sb){
+      var timer = null;
+      sb.addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(loadRows, 300); });
+    }
+  }catch(err){
+    console.error(err);
+    byId('initError').classList.remove('hidden');
+  }
+})();
 </script>
 </body>
 </html>
