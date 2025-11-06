@@ -6,29 +6,58 @@
   <title>Just Culture Assessment Tool — Ospital ng Makati</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @media (max-width: 1024px){
-      body:after{
-        content:"Desktop layout only";
-        position:fixed;bottom:8px;right:8px;background:#b91c1c;color:#fff;
-        padding:6px 10px;border-radius:8px;font-size:12px;opacity:.9
-      }
-    }
+    /* Base */
+    :root{ --tab-gap: .5rem; }
     @media print { .no-print { display:none !important; } body { margin: 12mm; } .card { box-shadow: none !important; border: 1px solid #ddd; } }
+
+    /* Mobile layout rules (auto) */
+    @media (max-width: 1024px){
+      .mobile-auto .grid-2 { grid-template-columns: 1fr !important; }
+      .mobile-auto .tabbar { grid-template-columns: repeat(6,minmax(7rem,1fr)); overflow-x:auto; gap: var(--tab-gap); -webkit-overflow-scrolling: touch; }
+      .mobile-auto .tabbar .tab { white-space: nowrap; }
+      .mobile-auto .touch-pad > * { padding: .9rem 1rem !important; font-size: 1rem; }
+      .mobile-auto .input-lg { padding: .75rem !important; }
+    }
+
+    /* Forced mobile (manual toggle) */
+    .mobile-forced .grid-2 { grid-template-columns: 1fr !important; }
+    .mobile-forced .tabbar { grid-template-columns: repeat(6,minmax(7rem,1fr)); overflow-x:auto; gap: var(--tab-gap); -webkit-overflow-scrolling: touch; }
+    .mobile-forced .tabbar .tab { white-space: nowrap; }
+    .mobile-forced .touch-pad > * { padding: .9rem 1rem !important; font-size: 1rem; }
+    .mobile-forced .input-lg { padding: .75rem !important; }
+
+    /* Forced desktop (manual toggle) */
+    .desktop-forced .grid-2 { grid-template-columns: 1fr 1fr !important; }
+    .desktop-forced .tabbar { grid-template-columns: repeat(6, minmax(0,1fr)); overflow: visible; }
+
+    /* Card look */
+    .card { box-shadow: 0 1px 2px rgba(0,0,0,.05); }
   </style>
 </head>
-<body class="min-h-screen bg-neutral-50 text-neutral-900">
+<body class="min-h-screen bg-neutral-50 text-neutral-900 mobile-auto" id="appRoot">
   <div id="initError" class="hidden fixed top-0 left-0 right-0 z-50 bg-red-700 text-white px-4 py-2 text-sm">
     App init failed. Open the browser console to see the exact error.
   </div>
 
-  <div class="max-w-6xl mx-auto p-6">
-    <header class="flex items-center gap-4 mb-6">
-      <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
-      <div>
-        <h1 class="text-2xl font-bold">Just Culture Assessment Tool</h1>
-        <p class="text-sm text-neutral-600">Ospital ng Makati • Desktop web app</p>
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <!-- Header -->
+    <header class="flex items-center gap-3 md:gap-4 mb-4 md:mb-6">
+      <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-12 h-12 md:w-14 md:h-14"/>
+      <div class="min-w-0">
+        <h1 class="text-xl md:text-2xl font-bold truncate">Just Culture Assessment Tool</h1>
+        <p class="text-xs md:text-sm text-neutral-600">Ospital ng Makati</p>
       </div>
-      <div class="ml-auto no-print flex items-center gap-2">
+
+      <!-- Manual layout toggle -->
+      <div class="ml-auto no-print flex items-center gap-2 touch-pad">
+        <label class="flex items-center gap-2 text-sm">
+          <span class="hidden md:inline">Layout:</span>
+          <select id="layoutMode" class="border rounded-lg px-2 py-1 input-lg">
+            <option value="auto">Auto</option>
+            <option value="mobile">Mobile</option>
+            <option value="desktop">Desktop</option>
+          </select>
+        </label>
         <button data-action="new" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">New</button>
         <button data-action="save" class="px-3 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800">Save</button>
         <button data-action="print" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Print / PDF</button>
@@ -36,7 +65,8 @@
       </div>
     </header>
 
-    <nav class="no-print grid grid-cols-6 gap-2 mb-4">
+    <!-- Tabs -->
+    <nav class="no-print grid tabbar grid-cols-6 gap-2 mb-4">
       <button data-tab="event" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Event</button>
       <button data-tab="investigation" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Investigation</button>
       <button data-tab="breach" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Breach</button>
@@ -45,6 +75,7 @@
       <button data-tab="report" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Report</button>
     </nav>
 
+    <!-- Previous entries -->
     <section class="no-print mb-4">
       <details class="group">
         <summary class="cursor-pointer select-none px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-900 font-semibold">Previous Entries (View / Edit / Delete)</summary>
@@ -72,64 +103,65 @@
       </details>
     </section>
 
+    <!-- Cards -->
     <main id="cards" class="space-y-6">
       <!-- EVENT -->
       <section data-panel="event" class="card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Event</h2>
-        <div class="grid grid-cols-2 gap-6">
+        <div class="grid grid-2 grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 class="font-medium mb-2">I. Event Details</h3>
             <label class="block text-sm mb-1">Description</label>
-            <textarea id="ev_description" rows="7" class="w-full p-3 border rounded-lg" placeholder="Describe the event clearly and concisely…"></textarea>
-            <div class="grid grid-cols-2 gap-3 mt-3">
+            <textarea id="ev_description" rows="7" class="w-full p-3 border rounded-lg input-lg" placeholder="Describe the event clearly and concisely…"></textarea>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               <div>
                 <label class="block text-sm mb-1">Location</label>
-                <input id="ev_location" class="w-full p-2 border rounded-lg" />
+                <input id="ev_location" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Work Location</label>
-                <input id="emp_workLocation" class="w-full p-2 border rounded-lg" />
+                <input id="emp_workLocation" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Event Date</label>
-                <input id="ev_eventDate" type="date" class="w-full p-2 border rounded-lg" />
+                <input id="ev_eventDate" type="date" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Report Assessment Date</label>
-                <input id="ev_reportDate" type="date" class="w-full p-2 border rounded-lg" />
+                <input id="ev_reportDate" type="date" class="w-full p-2 border rounded-lg input-lg" />
               </div>
             </div>
           </div>
           <div>
             <h3 class="font-medium mb-2">II. Employee Information</h3>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm mb-1">First Name</label>
-                <input id="emp_firstName" class="w-full p-2 border rounded-lg" />
+                <input id="emp_firstName" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Last Name</label>
-                <input id="emp_lastName" class="w-full p-2 border rounded-lg" />
+                <input id="emp_lastName" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Title</label>
-                <input id="emp_title" class="w-full p-2 border rounded-lg" />
+                <input id="emp_title" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Phone No.</label>
-                <input id="emp_phone" class="w-full p-2 border rounded-lg" />
+                <input id="emp_phone" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Employee No.</label>
-                <input id="emp_number" class="w-full p-2 border rounded-lg" />
+                <input id="emp_number" class="w-full p-2 border rounded-lg input-lg" />
               </div>
               <div>
                 <label class="block text-sm mb-1">Hire Date</label>
-                <input id="emp_hireDate" type="date" class="w-full p-2 border rounded-lg" />
+                <input id="emp_hireDate" type="date" class="w-full p-2 border rounded-lg input-lg" />
               </div>
-              <div class="col-span-2">
+              <div class="md:col-span-2">
                 <label class="block text-sm mb-1">Division</label>
-                <input id="emp_division" class="w-full p-2 border rounded-lg" />
+                <input id="emp_division" class="w-full p-2 border rounded-lg input-lg" />
               </div>
             </div>
           </div>
@@ -139,30 +171,30 @@
       <!-- INVESTIGATION -->
       <section data-panel="investigation" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Investigation</h2>
-        <div class="grid grid-cols-2 gap-6">
-          <div class="col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="md:col-span-2">
             <label class="block text-sm mb-1">What happened?</label>
-            <textarea id="inv_whatHappened" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+            <textarea id="inv_whatHappened" rows="4" class="w-full p-3 border rounded-lg input-lg"></textarea>
           </div>
-          <div class="col-span-2">
+          <div class="md:col-span-2">
             <label class="block text-sm mb-1">What normally happens?</label>
-            <textarea id="inv_normal" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+            <textarea id="inv_normal" rows="4" class="w-full p-3 border rounded-lg input-lg"></textarea>
           </div>
-          <div class="col-span-2">
+          <div class="md:col-span-2">
             <label class="block text-sm mb-1">What does procedure require? <span title="If applicable; cite policy or SOP" class="text-xs text-neutral-500">(?)</span></label>
-            <textarea id="inv_procedure" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+            <textarea id="inv_procedure" rows="4" class="w-full p-3 border rounded-lg input-lg"></textarea>
           </div>
-          <div class="col-span-2">
+          <div class="md:col-span-2">
             <label class="block text-sm mb-1">Why did it happen?</label>
-            <textarea id="inv_why" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+            <textarea id="inv_why" rows="4" class="w-full p-3 border rounded-lg input-lg"></textarea>
           </div>
-          <div class="col-span-2">
+          <div class="md:col-span-2">
             <label class="block text-sm mb-1">How are the risks managed?</label>
-            <textarea id="inv_riskMgmt" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+            <textarea id="inv_riskMgmt" rows="4" class="w-full p-3 border rounded-lg input-lg"></textarea>
           </div>
-          <div class="col-span-2">
+          <div class="md:col-span-2">
             <label class="block text-sm mb-1">Additional Comments</label>
-            <textarea id="inv_comments" rows="4" class="w-full p-3 border rounded-lg"></textarea>
+            <textarea id="inv_comments" rows="4" class="w-full p-3 border rounded-lg input-lg"></textarea>
           </div>
         </div>
       </section>
@@ -207,7 +239,7 @@
           </label>
         </fieldset>
         <label class="block text-sm mt-4 mb-1">Description</label>
-        <textarea id="breach_description" rows="4" class="w-full p-3 border rounded-lg" placeholder="Add any clarifying notes on the selected breach (optional)"></textarea>
+        <textarea id="breach_description" rows="4" class="w-full p-3 border rounded-lg input-lg" placeholder="Add any clarifying notes on the selected breach (optional)"></textarea>
       </section>
 
       <!-- ASSESSMENT -->
@@ -230,14 +262,14 @@
         </div>
         <div id="sys_prompts" class="hidden mt-2 space-y-2">
           <div class="text-sm text-neutral-600">Guided prompts (fill as relevant):</div>
-          <textarea id="sys_staffing" rows="2" class="w-full p-2 border rounded-lg" placeholder="Staffing"></textarea>
-          <textarea id="sys_equipment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Equipment"></textarea>
-          <textarea id="sys_training" rows="2" class="w-full p-2 border rounded-lg" placeholder="Training / competency"></textarea>
-          <textarea id="sys_environment" rows="2" class="w-full p-2 border rounded-lg" placeholder="Environment / workflow"></textarea>
-          <textarea id="sys_it" rows="2" class="w-full p-2 border rounded-lg" placeholder="IT / EMR / alerts"></textarea>
-          <textarea id="sys_policy" rows="2" class="w-full p-2 border rounded-lg" placeholder="Policy / Procedure (gaps, updates, approvals)"></textarea>
+          <textarea id="sys_staffing" rows="2" class="w-full p-2 border rounded-lg input-lg" placeholder="Staffing"></textarea>
+          <textarea id="sys_equipment" rows="2" class="w-full p-2 border rounded-lg input-lg" placeholder="Equipment"></textarea>
+          <textarea id="sys_training" rows="2" class="w-full p-2 border rounded-lg input-lg" placeholder="Training / competency"></textarea>
+          <textarea id="sys_environment" rows="2" class="w-full p-2 border rounded-lg input-lg" placeholder="Environment / workflow"></textarea>
+          <textarea id="sys_it" rows="2" class="w-full p-2 border rounded-lg input-lg" placeholder="IT / EMR / alerts"></textarea>
+          <textarea id="sys_policy" rows="2" class="w-full p-2 border rounded-lg input-lg" placeholder="Policy / Procedure (gaps, updates, approvals)"></textarea>
           <label class="block text-sm mt-2">Required Action Plan</label>
-          <textarea id="sys_actionPlan" rows="3" class="w-full p-2 border rounded-lg" placeholder="Describe redesign actions, owner, and timeline"></textarea>
+          <textarea id="sys_actionPlan" rows="3" class="w-full p-2 border rounded-lg input-lg" placeholder="Describe redesign actions, owner, and timeline"></textarea>
         </div>
       </section>
 
@@ -250,7 +282,7 @@
   </div>
 
 <script>
-/* ===== Basic helpers ===== */
+/* ===== Helpers ===== */
 function byId(id){ return document.getElementById(id); }
 function $all(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
 function toast(msg){ alert(msg); }
@@ -282,7 +314,7 @@ function defaultState(){
   };
 }
 
-/* ===== Assessment trees (no optional chaining) ===== */
+/* ===== Assessment trees ===== */
 var TREES = {
   duty_harm:{ first:'purpose', text:{
       purpose:"Was it the employee's purpose to cause the harm?",
@@ -399,7 +431,7 @@ function readFromUI(){
   current.system.actionPlan = byId('sys_actionPlan').value;
 }
 
-/* ===== Assessment rendering ===== */
+/* ===== Assessment UI ===== */
 function startAssessment(){
   var type = current.breach.type;
   current.assess.answers = {};
@@ -447,7 +479,7 @@ function renderAssessment(){
     var actionWrap = document.createElement('div');
     actionWrap.className = 'mt-3';
     actionWrap.innerHTML = '<label class="block text-sm mb-1">Action</label>\
-      <textarea id="ass_action" rows="4" class="w-full p-3 border rounded-lg" placeholder="Document the action to be taken at this endpoint...">'+(current.assess.action||'')+'</textarea>';
+      <textarea id="ass_action" rows="4" class="w-full p-3 border rounded-lg input-lg" placeholder="Document the action to be taken at this endpoint...">'+(current.assess.action||'')+'</textarea>';
     panel.appendChild(actionWrap);
     return;
   }
@@ -520,7 +552,7 @@ function renderReport(){
   '<section class="border rounded-lg p-4">\
     <h3 class="font-semibold text-emerald-800 mb-2">Event Details</h3>\
     <div><b>Description:</b> '+escapeHTML(c.ev.description)+'</div>\
-    <div class="grid grid-cols-2 gap-2 mt-2">\
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">\
       <div><b>Location:</b> '+escapeHTML(c.ev.location)+'</div>\
       <div><b>Work Location:</b> '+escapeHTML(e.workLocation)+'</div>\
       <div><b>Event Date:</b> '+(c.ev.eventDate||'')+'</div>\
@@ -529,7 +561,7 @@ function renderReport(){
   </section>\
   <section class="border rounded-lg p-4">\
     <h3 class="font-semibold text-emerald-800 mb-2">Employee</h3>\
-    <div class="grid grid-cols-2 gap-2">\
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">\
       <div><b>Name:</b> '+escapeHTML(e.firstName)+' '+escapeHTML(e.lastName)+'</div>\
       <div><b>Title:</b> '+escapeHTML(e.title)+'</div>\
       <div><b>Phone:</b> '+escapeHTML(e.phone)+'</div>\
@@ -550,7 +582,7 @@ function renderReport(){
     <h3 class="font-semibold text-emerald-800 mb-2">System Test</h3>\
     <div><b>System appears designed to achieve intended results?</b> '+(c.system.ok||'')+'</div>' +
     (c.system.ok==='no' ? '\
-      <div class="grid grid-cols-2 gap-2 mt-2">\
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">\
         <div><b>Staffing:</b><br>'+escapeHTML(c.system.staffing)+'</div>\
         <div><b>Equipment:</b><br>'+escapeHTML(c.system.equipment)+'</div>\
         <div><b>Training:</b><br>'+escapeHTML(c.system.training)+'</div>\
@@ -644,6 +676,26 @@ async function save(){
   try{ await loadRows(); }catch(err){ console.error('List error:', err); toast('List refresh failed: '+err.message); }
 }
 
+/* ===== Layout mode (auto / mobile / desktop) ===== */
+function applyLayoutClass(mode){
+  var root = byId('appRoot');
+  root.classList.remove('mobile-forced','desktop-forced','mobile-auto');
+  if(mode==='mobile'){ root.classList.add('mobile-forced'); }
+  else if(mode==='desktop'){ root.classList.add('desktop-forced'); }
+  else { root.classList.add('mobile-auto'); }
+}
+function initLayoutMode(){
+  var sel = byId('layoutMode');
+  var saved = localStorage.getItem('jc_layout_mode') || 'auto';
+  sel.value = saved;
+  applyLayoutClass(saved);
+  sel.addEventListener('change', function(){
+    var m = sel.value;
+    localStorage.setItem('jc_layout_mode', m);
+    applyLayoutClass(m);
+  });
+}
+
 /* ===== Delegated UI events ===== */
 function wireDelegatedEvents(){
   document.addEventListener('click', function(e){
@@ -694,11 +746,13 @@ function wireDelegatedEvents(){
 /* ===== Boot ===== */
 (function boot(){
   try{
+    initLayoutMode();
     wireDelegatedEvents();
     setActiveTab('event');
     current = defaultState();
     syncToUI();
-    loadRows(); // safe if backend not ready; errors are shown via toast in save/list path
+    loadRows();
+
     // Live search debounce
     var sb = byId('searchBox');
     if(sb){
