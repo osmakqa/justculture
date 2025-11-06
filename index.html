@@ -45,6 +45,7 @@
         <h1 class="text-xl md:text-2xl font-bold truncate">Just Culture Assessment Tool</h1>
         <p class="text-xs md:text-sm text-neutral-600">Ospital ng Makati</p>
         <p id="caseIdBadge" class="text-xs mt-1 text-emerald-700 font-medium"></p>
+        <p id="caseIdHint" class="text-xs text-neutral-500"></p>
       </div>
 
       <div class="ml-auto no-print flex items-center gap-2 touch-pad">
@@ -252,7 +253,7 @@
 
       <!-- SYSTEM -->
       <section data-panel="system" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
-        <h2 class="text-xl font-semibold mb-3 text-emerald-800">System Test</h2>
+        <h2 class="text-xl font-semibold mb-3 text-emerald-800">System</h2>
         <label class="block text-sm mb-1">Does the system appear designed to achieve the results you intend?</label>
         <div class="flex items-center gap-6 mb-3">
           <label class="flex items-center gap-2"><input type="radio" name="sys_ok" value="yes"> <span>Yes</span></label>
@@ -445,13 +446,35 @@ function readFromUI(){
   current.system.it = byId('sys_it').value;
   current.system.policy = byId('sys_policy').value;
   current.system.actionPlan = byId('sys_actionPlan').value;
+
+  renderCaseIdBadge(); // update the "will look like" hint live
 }
 
-/* ===== Case ID badge ===== */
+/* ===== Local preview of the ID prefix (for new cases) ===== */
+function breachCodeLocal(t){
+  return t==='duty_harm'?'DH':t==='duty_rule'?'PR':t==='duty_outcome'?'DO':t==='repetitive'?'RB':t==='no_breach'?'NB':'NB';
+}
+function sanitizeLocLocal(s){
+  s = (s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(!s) s='UNK'; return s.slice(0,6);
+}
+function yyyymmddLocal(d){
+  var dt = d?new Date(d):new Date(); if(isNaN(dt)) dt=new Date();
+  var y=dt.getFullYear(), m=('0'+(dt.getMonth()+1)).slice(-2), da=('0'+dt.getDate()).slice(-2);
+  return y+''+m+''+da;
+}
 function renderCaseIdBadge(){
-  var el = byId('caseIdBadge');
-  if(!el) return;
-  el.textContent = currentId ? ('Case ID: ' + currentId) : 'New case (ID assigned on Save)';
+  var badge = byId('caseIdBadge'), hint = byId('caseIdHint');
+  if(badge) badge.textContent = currentId ? ('Case ID: ' + currentId) : 'New case (ID assigned on Save)';
+  if(hint){
+    if(currentId){
+      hint.textContent = '';
+    }else{
+      var prefix = 'JC-' + breachCodeLocal(current.breach.type) + '-' +
+                   sanitizeLocLocal(current.ev.location) + '-' +
+                   yyyymmddLocal(current.ev.eventDate);
+      hint.textContent = 'Will look like: ' + prefix + '-NN';
+    }
+  }
 }
 
 /* ===== Assessment UI ===== */
@@ -606,7 +629,7 @@ function renderReport(){
     (c.assess.action ? '<div class="mt-2"><b>Assessment Action:</b><br>'+escapeHTML(c.assess.action)+'</div>' : '') +
   '</section>\
   <section class="border rounded-lg p-4">\
-    <h3 class="font-semibold text-emerald-800 mb-2">System Test</h3>\
+    <h3 class="font-semibold text-emerald-800 mb-2">System</h3>\
     <div><b>System appears designed to achieve intended results?</b> '+(c.system.ok||'')+'</div>' +
     (c.system.ok==='no' ? '\
       <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">\
