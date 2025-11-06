@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Just Culture Assessment Tool — Ospital ng Makati</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @media (max-width: 1024px){
@@ -19,9 +18,7 @@
 </head>
 <body class="min-h-screen bg-neutral-50 text-neutral-900">
   <div class="max-w-6xl mx-auto p-6">
-    <!-- Header -->
     <header class="flex items-center gap-4 mb-6">
-      <!-- Update src if your filename differs -->
       <img src="osmak-logo.png" alt="Ospital ng Makati" class="w-14 h-14"/>
       <div>
         <h1 class="text-2xl font-bold">Just Culture Assessment Tool</h1>
@@ -35,7 +32,6 @@
       </div>
     </header>
 
-    <!-- Tabs -->
     <nav class="no-print grid grid-cols-6 gap-2 mb-4">
       <button data-tab="event" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Event</button>
       <button data-tab="investigation" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Investigation</button>
@@ -45,7 +41,6 @@
       <button data-tab="report" class="tab px-3 py-2 rounded-lg bg-white border shadow-sm font-medium">Report</button>
     </nav>
 
-    <!-- Previous entries -->
     <section class="no-print mb-4">
       <details class="group">
         <summary class="cursor-pointer select-none px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-900 font-semibold">Previous Entries (View / Edit / Delete)</summary>
@@ -73,9 +68,7 @@
       </details>
     </section>
 
-    <!-- Cards container -->
     <main id="cards" class="space-y-6">
-      <!-- EVENT TAB -->
       <section data-panel="event" class="card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Event</h2>
         <div class="grid grid-cols-2 gap-6">
@@ -138,7 +131,6 @@
         </div>
       </section>
 
-      <!-- INVESTIGATION TAB -->
       <section data-panel="investigation" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Investigation</h2>
         <div class="grid grid-cols-2 gap-6">
@@ -169,7 +161,6 @@
         </div>
       </section>
 
-      <!-- BREACH TAB -->
       <section data-panel="breach" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Breach</h2>
         <fieldset class="grid grid-cols-1 gap-3">
@@ -212,7 +203,6 @@
         <textarea id="breach_description" rows="4" class="w-full p-3 border rounded-lg" placeholder="Add any clarifying notes on the selected breach (optional)"></textarea>
       </section>
 
-      <!-- ASSESSMENT TAB -->
       <section data-panel="assessment" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Assessment</h2>
         <div id="assessmentQuestions" class="space-y-3"></div>
@@ -222,7 +212,6 @@
         </div>
       </section>
 
-      <!-- SYSTEM TAB -->
       <section data-panel="system" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">System Test</h2>
         <label class="block text-sm mb-1">Does the system appear designed to achieve the results you intend?</label>
@@ -242,7 +231,6 @@
         </div>
       </section>
 
-      <!-- REPORT TAB -->
       <section data-panel="report" class="hidden card bg-white border rounded-xl p-5 shadow-sm">
         <h2 class="text-xl font-semibold mb-3 text-emerald-800">Report</h2>
         <div id="reportContainer" class="space-y-4"></div>
@@ -251,13 +239,11 @@
   </div>
 
 <script>
-// ===================== CONFIG =====================
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec'; // update if your deployment URL changes
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzdroioRdkjqpZoOAi70uHw5WP1l9DKHRQeiZAzwwAzg2S-j4g7ae_rFlTHjcgOt32GHw/exec';
 const SHEET_NAME = 'Cases';
 
-// ===================== STATE =====================
-let current = {};     // in-memory record
-let currentId = null; // caseId from sheet
+let current = {};
+let currentId = null;
 const defaultState = () => ({
   ev: {
     description:'', location:'', eventDate:'', reportDate:'',
@@ -269,19 +255,17 @@ const defaultState = () => ({
   system: { ok:'', staffing:'', equipment:'', training:'', environment:'', it:'', actionPlan:'' }
 });
 
-// ===================== UTILITIES =====================
 const byId = id => document.getElementById(id);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const setActiveTab = (name) => {
   $$('[data-panel]').forEach(p => p.classList.toggle('hidden', p.getAttribute('data-panel')!==name));
   $$('.tab').forEach(t => t.classList.toggle('bg-emerald-100', t.dataset.tab===name));
 };
-const toast = (msg) => { alert(msg); } // simple
+const toast = (msg) => alert(msg);
 
 function newRecord(){ current = defaultState(); currentId=null; syncToUI(); renderReport(); }
 
 function syncToUI(){
-  // Event
   byId('ev_description').value = current.ev.description;
   byId('ev_location').value = current.ev.location;
   byId('ev_eventDate').value = current.ev.eventDate;
@@ -294,10 +278,8 @@ function syncToUI(){
   byId('emp_hireDate').value = current.ev.employee.hireDate;
   byId('emp_division').value = current.ev.employee.division;
   byId('emp_workLocation').value = current.ev.employee.workLocation;
-  // Breach
   $$('input[name="breach"]').forEach(r=> r.checked = (r.value===current.breach.type));
   byId('breach_description').value = current.breach.description;
-  // System
   $$('input[name="sys_ok"]').forEach(r=> r.checked = (r.value===current.system.ok));
   byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no');
   byId('sys_staffing').value = current.system.staffing;
@@ -306,7 +288,6 @@ function syncToUI(){
   byId('sys_environment').value = current.system.environment;
   byId('sys_it').value = current.system.it;
   byId('sys_actionPlan').value = current.system.actionPlan;
-  // Assessment
   renderAssessment();
 }
 
@@ -336,7 +317,6 @@ function readFromUI(){
   current.system.actionPlan = byId('sys_actionPlan').value;
 }
 
-// ===================== ASSESSMENT ENGINE =====================
 const TREES = {
   duty_harm: {
     first: 'purpose',
@@ -431,7 +411,6 @@ function renderAssessment(){
     return;
   }
 
-  // 1) Show previous steps with editable radios (unique names per step)
   (current.assess.path||[]).forEach((step, idx)=>{
     const block = document.createElement('div');
     block.className = 'flex items-center justify-between border rounded-lg p-3';
@@ -449,7 +428,6 @@ function renderAssessment(){
     panel.appendChild(block);
   });
 
-  // 2) If finished, show Action textbox and decision
   if(!current.assess.currentKey){
     byId('decisionBox').textContent = current.assess.decision || '';
     const actionWrap = document.createElement('div');
@@ -460,7 +438,6 @@ function renderAssessment(){
     return;
   }
 
-  // 3) Render current question (next step)
   const key = current.assess.currentKey;
   const text = TREES[type].text[key];
   const row = document.createElement('div');
@@ -511,7 +488,6 @@ function handlePrevAnswer(index, val){
   byId('decisionBox').textContent = current.assess.decision||'';
 }
 
-// ===================== REPORT =====================
 function renderReport(){
   readFromUI();
   const c = current; const R = byId('reportContainer');
@@ -582,38 +558,28 @@ function renderReport(){
 
 function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
 
-// ===================== API (Apps Script) =====================
+// ---- API: avoid preflight by NOT setting Content-Type (let it be text/plain) ----
 async function api(method, payload){
   let res, text;
   try {
     res = await fetch(WEB_APP_URL, {
       method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ method, sheet:SHEET_NAME, payload })
+      // No headers -> browser sends text/plain; no OPTIONS preflight to Apps Script
+      body: JSON.stringify({ method, sheet: SHEET_NAME, payload })
     });
   } catch (netErr) {
     throw new Error('Network error contacting backend: ' + netErr.message);
   }
 
-  try {
-    text = await res.text();
-  } catch (readErr) {
-    throw new Error('Failed to read backend response: ' + readErr.message);
-  }
+  try { text = await res.text(); }
+  catch (readErr) { throw new Error('Failed to read backend response: ' + readErr.message); }
 
   let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(`Bad JSON from backend (HTTP ${res.status}): ${text.slice(0,200)}`);
-  }
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`Bad JSON from backend (HTTP ${res.status}): ${text.slice(0,200)}`); }
 
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${data && data.error ? data.error : 'Unknown error'}`);
-  }
-  if (!data.ok) {
-    throw new Error(data.error || 'API error without message');
-  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${data && data.error ? data.error : 'Unknown error'}`);
+  if (!data.ok) throw new Error(data.error || 'API error without message');
   return data;
 }
 
@@ -626,7 +592,6 @@ async function save(){
     return toast('Action Plan is required when System Test = No.');
   }
 
-  // 1) Save first
   try {
     const rec = { id: currentId, data: current };
     const { id } = await api('save', rec);
@@ -637,18 +602,13 @@ async function save(){
     return toast('Save failed: ' + err.message);
   }
 
-  // 2) Then refresh list; if it fails, don’t mark save as failed
-  try {
-    await loadRows();
-  } catch(err){
-    console.error('List error after save:', err);
-    toast('List refresh failed: ' + err.message);
-  }
+  try { await loadRows(); }
+  catch(err){ console.error('List error after save:', err); toast('List refresh failed: ' + err.message); }
 }
 
 async function loadRows(){
   const q = byId('searchBox').value.trim();
-  const { rows } = await api('list', { q }); // let errors throw
+  const { rows } = await api('list', { q });
   const tbody = byId('rowsTable');
   tbody.innerHTML = rows.map(r=> `
     <tr class="border-b">
@@ -705,18 +665,14 @@ function flattenCurrent(){
   };
 }
 
-// ===================== EVENTS =====================
 window.addEventListener('DOMContentLoaded', ()=>{
-  // Tabs
   $$('.tab').forEach(t=> t.onclick = ()=> setActiveTab(t.dataset.tab));
   setActiveTab('event');
 
-  // Keep data in sync + keep report live
   $$('#cards input, #cards textarea').forEach(el =>
     el.addEventListener('change', ()=>{ readFromUI(); renderReport(); })
   );
 
-  // Assessment stepper + editable previous answers + action field
   document.getElementById('cards').onchange = (e)=>{
     if (e.target && e.target.name === 'step_answer') {
       handleStepAnswer(e.target.value);
@@ -733,30 +689,25 @@ window.addEventListener('DOMContentLoaded', ()=>{
     }
   };
 
-  // When breach changes, restart the step flow
   $$('input[name="breach"]').forEach(el=> el.addEventListener('change', ()=>{
     readFromUI();
     startAssessment();
     renderAssessment();
   }));
 
-  // System prompts (require Action Plan when No)
   $$('input[name="sys_ok"]').forEach(el=> el.addEventListener('change', ()=>{ 
     readFromUI(); 
     byId('sys_prompts').classList.toggle('hidden', current.system.ok!=='no'); 
   }));
 
-  // Top-right buttons
   byId('btnNew').onclick = newRecord;
   byId('btnSave').onclick = save;
   byId('btnExportCSV').onclick = exportCSV;
   byId('btnExportPDF').onclick = ()=> window.print();
 
-  // Previous entries
   byId('btnRefresh').onclick = loadRows;
   byId('searchBox').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadRows, 300); };
 
-  // Boot
   newRecord();
   loadRows();
 });
